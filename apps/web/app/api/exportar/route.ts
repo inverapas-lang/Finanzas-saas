@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 
     if (formato === 'xlsx') {
       const buffer = generarXLSX(filas);
-      return new NextResponse(buffer, {
+      return new NextResponse(new Uint8Array(buffer), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'Content-Disposition': `attachment; filename="movimientos-${fechaHoy}.xlsx"`,
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     }
 
     const pdf = await generarPDF(filas);
-    return new NextResponse(pdf, {
+    return new NextResponse(new Uint8Array(pdf), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="movimientos-${fechaHoy}.pdf"`,
