@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
 import { formatearMoneda, formatearFecha } from '../../../lib/formato';
 import { BarraLateral } from '../../../components/BarraLateral';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, CalendarRange } from 'lucide-react';
 
 interface Espacio {
   id: string;
@@ -141,6 +141,14 @@ export default function PaginaMovimientos() {
           </div>
           {token && espacio && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <BotonCargaMasiva
+                token={token}
+                espacioId={espacio.id}
+                categorias={categorias}
+                cuentas={cuentas}
+                tipoInicial={pestana === 'ingresos' ? 'ingreso' : 'gasto'}
+                onCreado={() => cargarTodo(token, espacio.id)}
+              />
               <BotonImportar token={token} espacioId={espacio.id} onImportado={() => cargarTodo(token, espacio.id)} />
               <BotonesExportar token={token} espacioId={espacio.id} />
             </div>
@@ -854,6 +862,383 @@ function BotonImportar({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+const NOMBRES_MES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+];
+
+interface FilaCargaMasiva {
+  mes: number; // 1-12
+  descripcion: string;
+  importe: string;
+  incluir: boolean;
+}
+
+function BotonCargaMasiva({
+  token,
+  espacioId,
+  categorias,
+  cuentas,
+  tipoInicial,
+  onCreado,
+}: {
+  token: string;
+  espacioId: string;
+  categorias: Categoria[];
+  cuentas: Cuenta[];
+  tipoInicial: 'ingreso' | 'gasto';
+  onCreado: () => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <>
+      <button className="boton-secundario" onClick={() => setAbierto(true)}>
+        <CalendarRange size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+        Carga masiva
+      </button>
+      {abierto && (
+        <ModalCargaMasiva
+          token={token}
+          espacioId={espacioId}
+          categorias={categorias}
+          cuentas={cuentas}
+          tipoInicial={tipoInicial}
+          onCerrar={() => setAbierto(false)}
+          onCreado={() => {
+            onCreado();
+            setAbierto(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function ModalCargaMasiva({
+  token,
+  espacioId,
+  categorias,
+  cuentas,
+  tipoInicial,
+  onCerrar,
+  onCreado,
+}: {
+  token: string;
+  espacioId: string;
+  categorias: Categoria[];
+  cuentas: Cuenta[];
+  tipoInicial: 'ingreso' | 'gasto';
+  onCerrar: () => void;
+  onCreado: () => void;
+}) {
+  const [tipo, setTipo] = useState<'ingreso' | 'gasto'>(tipoInicial);
+  const [descripcionBase, setDescripcionBase] = useState('');
+  const [categoriaId, setCategoriaId] = useState('');
+  const [cuentaId, setCuentaId] = useState('');
+  const [anio, setAnio] = useState(String(new Date().getFullYear()));
+  const [diaDelMes, setDiaDelMes] = useState('1');
+  const [mesInicio, setMesInicio] = useState(1);
+  const [mesFin, setMesFin] = useState(12);
+  const [modoImporte, setModoImporte] = useState<'fijo' | 'variable'>('fijo');
+  const [importeFijo, setImporteFijo] = useState('');
+  const [importesPorMes, setImportesPorMes] = useState<string[]>(Array(12).fill(''));
+  const [confirmados, setConfirmados] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const categoriasDelTipo = categorias.filter((c) => c.tipo === tipo);
+
+  const filas: FilaCargaMasiva[] = [];
+  for (let mes = 1; mes <= 12; mes++) {
+    if (mes < mesInicio || mes > mesFin) continue;
+    const importe = modoImporte === 'fijo' ? importeFijo : importesPorMes[mes - 1];
+    filas.push({
+      mes,
+      descripcion: descripcionBase.trim()
+        ? `${descripcionBase.trim()} — ${NOMBRES_MES[mes - 1]} ${anio}`
+        : `${NOMBRES_MES[mes - 1]} ${anio}`,
+      importe,
+      incluir: true,
+    });
+  }
+
+  const totalFilasValidas = filas.filter((f) => f.importe.trim() !== '' && !Number.isNaN(Number(f.importe))).length;
+
+  function pegarColumnaImportes(texto: string) {
+    // Permite pegar directamente una columna de 12 (o menos) valores copiada
+    // de un Excel/Sheets — una cifra por línea o separada por tabulador.
+    const valores = texto
+      .split(/[\n\t]+/)
+      .map((v) => v.trim().replace(',', '.'))
+      .filter((v) => v !== '');
+    if (valores.length === 0) return;
+    setImportesPorMes((anterior) => {
+      const nuevo = [...anterior];
+      let indice = mesInicio - 1;
+      for (const valor of valores) {
+        if (indice > mesFin - 1) break;
+        nuevo[indice] = valor;
+        indice++;
+      }
+      return nuevo;
+    });
+  }
+
+  async function crear() {
+    setGuardando(true);
+    setError(null);
+    try {
+      const diaNumero = Number(diaDelMes);
+      const dia = String(Number.isFinite(diaNumero) && diaNumero >= 1 && diaNumero <= 28 ? diaNumero : 1).padStart(
+        2,
+        '0'
+      );
+      const filasParaEnviar = filas
+        .filter((f) => f.importe.trim() !== '')
+        .map((f) => ({
+          descripcion: f.descripcion,
+          fecha_prevista: `${anio}-${String(f.mes).padStart(2, '0')}-${dia}`,
+          importe: Number(f.importe),
+        }));
+
+      if (filasParaEnviar.length === 0) {
+        throw new Error('Rellena al menos un importe para poder crear movimientos.');
+      }
+
+      const respuesta = await fetch('/api/movimientos/carga-masiva', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo,
+          espacio_id: espacioId,
+          categoria_id: categoriaId || null,
+          cuenta_id: cuentaId || null,
+          confirmados,
+          filas: filasParaEnviar,
+        }),
+      });
+      const cuerpo = await respuesta.json();
+      if (!respuesta.ok) throw new Error(cuerpo.error ?? 'No se ha podido crear los movimientos.');
+      onCreado();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al crear los movimientos.');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.4)',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        padding: '40px 16px',
+        zIndex: 100,
+        overflowY: 'auto',
+      }}
+      onClick={onCerrar}
+    >
+      <div
+        className="tarjeta"
+        style={{ width: 640, maxWidth: '100%', padding: 24 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Carga masiva</h2>
+            <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>
+              Crea de golpe una serie mensual (nóminas de un año pasado, dividendos estimados, etc.)
+            </p>
+          </div>
+          <button className="enlace-discreto" onClick={onCerrar}>
+            Cerrar
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 4, margin: '16px 0', borderBottom: '1px solid var(--color-border)' }}>
+          <BotonPestana activa={tipo === 'ingreso'} onClick={() => { setTipo('ingreso'); setCategoriaId(''); }}>
+            Ingresos
+          </BotonPestana>
+          <BotonPestana activa={tipo === 'gasto'} onClick={() => { setTipo('gasto'); setCategoriaId(''); }}>
+            Gastos
+          </BotonPestana>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <CampoTexto
+            etiqueta="Descripción base"
+            valor={descripcionBase}
+            onCambio={setDescripcionBase}
+            placeholder={tipo === 'ingreso' ? 'Nómina' : 'Alquiler'}
+          />
+          <label style={{ fontSize: 13, fontWeight: 500 }}>
+            Año
+            <input
+              type="number"
+              value={anio}
+              onChange={(e) => setAnio(e.target.value)}
+              className="campo-texto"
+              style={{ marginTop: 6 }}
+            />
+          </label>
+          <SelectorOpcional etiqueta="Cuenta" valor={cuentaId} onCambio={setCuentaId} opciones={cuentas} />
+          <SelectorOpcional etiqueta="Categoría" valor={categoriaId} onCambio={setCategoriaId} opciones={categoriasDelTipo} />
+          <label style={{ fontSize: 13, fontWeight: 500 }}>
+            Desde mes
+            <select
+              value={mesInicio}
+              onChange={(e) => setMesInicio(Number(e.target.value))}
+              className="campo-texto"
+              style={{ marginTop: 6 }}
+            >
+              {NOMBRES_MES.map((n, i) => (
+                <option key={i} value={i + 1}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ fontSize: 13, fontWeight: 500 }}>
+            Hasta mes
+            <select
+              value={mesFin}
+              onChange={(e) => setMesFin(Number(e.target.value))}
+              className="campo-texto"
+              style={{ marginTop: 6 }}
+            >
+              {NOMBRES_MES.map((n, i) => (
+                <option key={i} value={i + 1}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ fontSize: 13, fontWeight: 500 }}>
+            Día del mes <span className="texto-ayuda">(fecha prevista)</span>
+            <input
+              type="number"
+              min="1"
+              max="28"
+              value={diaDelMes}
+              onChange={(e) => setDiaDelMes(e.target.value)}
+              className="campo-texto"
+              style={{ marginTop: 6 }}
+            />
+          </label>
+          <label style={{ fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8, marginTop: 22 }}>
+            <input type="checkbox" checked={confirmados} onChange={(e) => setConfirmados(e.target.checked)} />
+            Ya {tipo === 'ingreso' ? 'cobrados' : 'pagados'} (año pasado, dato real)
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+          <button
+            className={modoImporte === 'fijo' ? 'boton-primario' : 'boton-secundario'}
+            style={{ fontSize: 12, padding: '6px 10px' }}
+            onClick={() => setModoImporte('fijo')}
+          >
+            Mismo importe cada mes
+          </button>
+          <button
+            className={modoImporte === 'variable' ? 'boton-primario' : 'boton-secundario'}
+            style={{ fontSize: 12, padding: '6px 10px' }}
+            onClick={() => setModoImporte('variable')}
+          >
+            Importe distinto cada mes
+          </button>
+        </div>
+
+        {modoImporte === 'fijo' ? (
+          <CampoNumero etiqueta="Importe mensual (€)" valor={importeFijo} onCambio={setImporteFijo} />
+        ) : (
+          <div style={{ marginBottom: 12 }}>
+            <p className="texto-ayuda" style={{ margin: '0 0 6px' }}>
+              Pega aquí una columna de importes copiada de Excel/Sheets (uno por línea) o rellénalos a mano abajo.
+            </p>
+            <textarea
+              className="campo-texto"
+              placeholder={'1200.50\n1200.50\n1350.00\n…'}
+              rows={2}
+              style={{ marginBottom: 8, fontFamily: 'monospace', fontSize: 12 }}
+              onPaste={(e) => {
+                const texto = e.clipboardData.getData('text');
+                if (texto.includes('\n') || texto.includes('\t')) {
+                  e.preventDefault();
+                  pegarColumnaImportes(texto);
+                }
+              }}
+              onChange={() => {
+                /* solo se usa para capturar el pegado; el detalle se edita abajo */
+              }}
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              {filas.map((f) => (
+                <label key={f.mes} style={{ fontSize: 12 }}>
+                  {NOMBRES_MES[f.mes - 1].slice(0, 3)}
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={importesPorMes[f.mes - 1]}
+                    onChange={(e) =>
+                      setImportesPorMes((anterior) => {
+                        const nuevo = [...anterior];
+                        nuevo[f.mes - 1] = e.target.value;
+                        return nuevo;
+                      })
+                    }
+                    className="campo-texto"
+                    style={{ marginTop: 4, padding: '4px 6px' }}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="tarjeta" style={{ padding: 0, marginBottom: 12, maxHeight: 220, overflowY: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <tbody>
+              {filas.map((f, i) => (
+                <tr key={f.mes} style={{ borderBottom: i === filas.length - 1 ? 'none' : '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '6px 12px' }}>{f.descripcion}</td>
+                  <td style={{ padding: '6px 12px', textAlign: 'right', color: f.importe.trim() === '' ? 'var(--color-text-muted)' : undefined }}>
+                    {f.importe.trim() === '' ? '—' : formatearMoneda(Number(f.importe))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {error && <p className="mensaje-error" style={{ marginBottom: 12 }}>{error}</p>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button className="boton-secundario" onClick={onCerrar} disabled={guardando}>
+            Cancelar
+          </button>
+          <button className="boton-primario" onClick={crear} disabled={guardando || totalFilasValidas === 0}>
+            {guardando ? 'Creando…' : `Crear ${totalFilasValidas} movimiento${totalFilasValidas === 1 ? '' : 's'}`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
