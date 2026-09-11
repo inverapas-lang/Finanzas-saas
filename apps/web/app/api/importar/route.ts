@@ -4,6 +4,7 @@ import { crearClienteSupabaseDeRequest, ErrorApi } from '../../../lib/supabase-s
 import { mapearFilasImportadas, type FilaImportada } from '../../../lib/importar';
 
 const TAMANO_MAXIMO_BYTES = 5 * 1024 * 1024; // 5 MB, generoso para un Excel de movimientos
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * POST /api/importar (multipart/form-data: campos "archivo" y "espacio_id")
@@ -27,7 +28,9 @@ export async function POST(request: NextRequest) {
     const espacio_id = formData.get('espacio_id');
 
     if (!(archivo instanceof File)) throw new ErrorApi(400, 'Falta el archivo');
-    if (typeof espacio_id !== 'string') throw new ErrorApi(400, 'Falta espacio_id');
+    if (typeof espacio_id !== 'string' || !UUID_REGEX.test(espacio_id)) {
+      throw new ErrorApi(400, 'espacio_id debe ser un UUID válido');
+    }
     if (archivo.size > TAMANO_MAXIMO_BYTES) {
       throw new ErrorApi(400, 'El archivo pesa más de 5 MB');
     }

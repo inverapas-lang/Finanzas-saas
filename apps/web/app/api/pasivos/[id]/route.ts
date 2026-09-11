@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { crearClienteSupabaseDeRequest, ErrorApi } from '../../../../lib/supabase-server';
 import { regenerarCuadroAmortizacion } from '../../../../lib/regenerar-cuadro';
+import { validarCambiosPasivo } from '../../../../lib/validacion-pasivos';
 
 interface Contexto {
   params: Promise<{ id: string }>;
@@ -34,6 +35,7 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
     delete cambios.espacio_id;
     delete cambios.created_at;
     delete cambios.cuota; // se recalcula, no se edita a mano
+    validarCambiosPasivo(cambios);
 
     const necesitaRegenerar = Object.keys(cambios).some((campo) =>
       CAMPOS_QUE_AFECTAN_AL_CUADRO.includes(campo)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { crearClienteSupabaseDeRequest, ErrorApi } from '../../../../lib/supabase-server';
+import { validarCambiosMovimiento } from '../../../../lib/validacion-movimientos';
 
 interface Contexto {
   params: Promise<{ id: string }>;
@@ -34,6 +35,7 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
     delete cambios.espacio_id;
     delete cambios.created_by;
     delete cambios.created_at;
+    validarCambiosMovimiento(cambios, 'gasto');
 
     const supabase = crearClienteSupabaseDeRequest(request);
     const { data, error } = await supabase
@@ -45,7 +47,7 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
 
     if (error) {
       if (error.code === '42501') {
-        throw new ErrorApi(403, 'No tienes permiso para editar este ingreso');
+        throw new ErrorApi(403, 'No tienes permiso para editar este gasto');
       }
       throw new ErrorApi(400, error.message);
     }
@@ -68,7 +70,7 @@ export async function DELETE(request: NextRequest, { params }: Contexto) {
 
     if (error) {
       if (error.code === '42501') {
-        throw new ErrorApi(403, 'No tienes permiso para eliminar este ingreso');
+        throw new ErrorApi(403, 'No tienes permiso para eliminar este gasto');
       }
       throw new ErrorApi(400, error.message);
     }

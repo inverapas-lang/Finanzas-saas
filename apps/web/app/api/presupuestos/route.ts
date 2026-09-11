@@ -30,12 +30,15 @@ export async function POST(request: NextRequest) {
 
     const { data: categoria, error: errorCategoria } = await supabase
       .from('categorias')
-      .select('id, tipo')
+      .select('id, tipo, espacio_id')
       .eq('id', payload.categoria_id)
       .maybeSingle();
 
     if (errorCategoria) throw new ErrorApi(500, errorCategoria.message);
     if (!categoria) throw new ErrorApi(404, 'categoria_id no existe o no tienes acceso a ella');
+    if (categoria.espacio_id !== payload.espacio_id) {
+      throw new ErrorApi(400, 'La categoría debe pertenecer al mismo espacio que el presupuesto');
+    }
     if (categoria.tipo !== 'gasto') {
       throw new ErrorApi(400, 'Los presupuestos solo se pueden planificar sobre categorías de gasto');
     }

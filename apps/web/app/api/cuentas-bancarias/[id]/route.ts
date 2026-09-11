@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { crearClienteSupabaseDeRequest, ErrorApi } from '../../../../lib/supabase-server';
+import { validarCambiosCuenta } from '../../../../lib/validacion-cuentas';
 
 interface Contexto {
   params: Promise<{ id: string }>;
@@ -27,6 +28,7 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
     delete cambios.id;
     delete cambios.espacio_id;
     delete cambios.created_at;
+    validarCambiosCuenta(cambios);
 
     const supabase = crearClienteSupabaseDeRequest(request);
     const { data, error } = await supabase

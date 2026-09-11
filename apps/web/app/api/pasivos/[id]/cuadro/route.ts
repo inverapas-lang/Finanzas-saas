@@ -16,6 +16,14 @@ export async function GET(request: NextRequest, { params }: Contexto) {
     const { id } = await params;
     const supabase = crearClienteSupabaseDeRequest(request);
 
+    const { data: pasivo, error: errorPasivo } = await supabase
+      .from('pasivos')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+    if (errorPasivo) throw new ErrorApi(500, errorPasivo.message);
+    if (!pasivo) throw new ErrorApi(404, 'Pasivo no encontrado o sin acceso');
+
     const { data, error } = await supabase
       .from('cuadro_amortizacion')
       .select('*')

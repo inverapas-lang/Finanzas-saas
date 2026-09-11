@@ -3,6 +3,7 @@ import { crearClienteSupabaseDeRequest, ErrorApi } from '../../../lib/supabase-s
 import { generarCSV, generarXLSX, generarPDF, type RegistroExportable } from '../../../lib/exportar';
 
 const FORMATOS_VALIDOS = ['csv', 'xlsx', 'pdf'];
+const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * GET /api/exportar?espacio_id=...&formato=csv|xlsx&desde=YYYY-MM-DD&hasta=YYYY-MM-DD
@@ -20,6 +21,8 @@ export async function GET(request: NextRequest) {
     if (!FORMATOS_VALIDOS.includes(formato)) {
       throw new ErrorApi(400, `formato debe ser uno de: ${FORMATOS_VALIDOS.join(', ')}`);
     }
+    if (desde && !FECHA_REGEX.test(desde)) throw new ErrorApi(400, 'desde debe tener formato YYYY-MM-DD');
+    if (hasta && !FECHA_REGEX.test(hasta)) throw new ErrorApi(400, 'hasta debe tener formato YYYY-MM-DD');
 
     const supabase = crearClienteSupabaseDeRequest(request);
 

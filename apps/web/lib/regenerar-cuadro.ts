@@ -75,6 +75,20 @@ export async function regenerarCuadroAmortizacion(
     amortizacionesExtra: amortExtra,
   });
 
+  // El cliente de supabase-js no permite envolver DELETE + INSERT en una
+  // única transacción de Postgres desde aquí. Para no dejar el pasivo sin
+  // cuadro de amortización si el INSERT falla tras el DELETE, guardamos una
+  // copia del cuadro anterior y, si algo sale mal, intentamos restaurarlo
+  // como compensación manual antes de propagar el error.
+  const { data: cuadroAnterior, error: errorLecturaAnterior } = await supabase
+    .from('cuadro_amortizacion')
+    .select('*')
+    .eq('pasivo_id', pasivo.id);
+
+  if (errorLecturaAnterior) {
+    throw new ErrorApi(500, `Error leyendo cuadro anterior: ${errorLecturaAnterior.message}`);
+  }
+
   const { error: errorBorrado } = await supabase
     .from('cuadro_amortizacion')
     .delete()
@@ -100,6 +114,17 @@ export async function regenerarCuadroAmortizacion(
     .insert(filasAInsertar);
 
   if (errorInsercion) {
+    if (cuadroAnterior && cuadroAnterior.length > 0) {
+      const { error: errorRestauracion } = await supabase
+        .from('cuadro_amortizacion')
+        .insert(cuadroAnterior);
+      if (errorRestauracion) {
+        throw new ErrorApi(
+          500,
+          `Error guardando el nuevo cuadro (${errorInsercion.message}) y además falló la restauración del anterior (${errorRestauracion.message}): el pasivo ha quedado sin cuadro de amortización, requiere intervención manual`
+        );
+      }
+    }
     throw new ErrorApi(500, `Error guardando el nuevo cuadro: ${errorInsercion.message}`);
   }
 }

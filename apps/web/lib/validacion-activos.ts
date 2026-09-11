@@ -84,3 +84,46 @@ export function validarPayloadActivo(body: unknown): PayloadActivo {
     notas: typeof b.notas === 'string' ? b.notas : null,
   };
 }
+
+/** Validación de un PATCH parcial: solo valida los campos presentes en `cambios`. */
+export function validarCambiosActivo(cambios: Record<string, unknown>): void {
+  if (cambios.tipo !== undefined) {
+    if (typeof cambios.tipo !== 'string' || !TIPOS_ACTIVO.includes(cambios.tipo as TipoActivo)) {
+      throw new ErrorApi(400, `tipo debe ser uno de: ${TIPOS_ACTIVO.join(', ')}`);
+    }
+  }
+  if (cambios.nombre !== undefined) {
+    if (typeof cambios.nombre !== 'string' || cambios.nombre.trim().length === 0) {
+      throw new ErrorApi(400, 'nombre no puede estar vacío');
+    }
+  }
+  if (cambios.valor_actual !== undefined) {
+    if (typeof cambios.valor_actual !== 'number' || cambios.valor_actual < 0) {
+      throw new ErrorApi(400, 'valor_actual debe ser un número >= 0');
+    }
+  }
+  if (cambios.fuente_valoracion !== undefined) {
+    if (
+      typeof cambios.fuente_valoracion !== 'string' ||
+      !FUENTES.includes(cambios.fuente_valoracion as FuenteValoracion)
+    ) {
+      throw new ErrorApi(400, `fuente_valoracion debe ser uno de: ${FUENTES.join(', ')}`);
+    }
+    if (cambios.fuente_valoracion === 'api_externa') {
+      throw new ErrorApi(
+        400,
+        'fuente_valoracion "api_externa" no está disponible todavía (no hay ninguna integración real conectada) — usa "manual"'
+      );
+    }
+  }
+  if (cambios.rentabilidad_estimada !== undefined && cambios.rentabilidad_estimada !== null) {
+    if (typeof cambios.rentabilidad_estimada !== 'number') {
+      throw new ErrorApi(400, 'rentabilidad_estimada debe ser un número si se indica');
+    }
+  }
+  if (cambios.fecha_valoracion !== undefined) {
+    if (typeof cambios.fecha_valoracion !== 'string' || !FECHA_REGEX.test(cambios.fecha_valoracion)) {
+      throw new ErrorApi(400, 'fecha_valoracion debe tener formato YYYY-MM-DD');
+    }
+  }
+}

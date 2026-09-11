@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { crearClienteSupabaseDeRequest, ErrorApi } from '../../../../lib/supabase-server';
+import { validarCambiosActivo } from '../../../../lib/validacion-activos';
 
 interface Contexto {
   params: Promise<{ id: string }>;
@@ -27,6 +28,7 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
     delete cambios.id;
     delete cambios.espacio_id;
     delete cambios.created_at;
+    validarCambiosActivo(cambios);
 
     // Si se actualiza el valor sin indicar fecha, ponemos la de hoy — un
     // valor sin fecha de valoración asociada no tiene sentido de negocio.

@@ -54,6 +54,9 @@ export async function POST(request: NextRequest) {
 
       if (errorPadre) throw new ErrorApi(500, errorPadre.message);
       if (!padre) throw new ErrorApi(404, 'categoria_padre_id no existe o no tienes acceso a ella');
+      if (padre.espacio_id !== payload.espacio_id) {
+        throw new ErrorApi(400, 'La categoría padre debe pertenecer al mismo espacio');
+      }
       if (padre.tipo !== payload.tipo) {
         throw new ErrorApi(400, 'La categoría padre debe ser del mismo tipo (ingreso/gasto)');
       }

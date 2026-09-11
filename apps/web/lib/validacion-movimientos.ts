@@ -97,6 +97,47 @@ export function validarPayloadMovimiento(
   return payload;
 }
 
+/**
+ * Validación de un PATCH parcial: solo valida los campos que vienen
+ * presentes en `cambios` (nunca exige los obligatorios de un alta), para
+ * evitar persistir valores inválidos (importe negativo, fecha con formato
+ * incorrecto, moneda arbitraria) que `validarPayloadMovimiento` sí bloquea
+ * en el alta pero que un PATCH sin pasar por aquí dejaría colar.
+ */
+export function validarCambiosMovimiento(
+  cambios: Record<string, unknown>,
+  tipo: TipoMovimientoApi
+): void {
+  const campoImporte = tipo === 'ingreso' ? 'importe_esperado' : 'importe_previsto';
+  if (cambios[campoImporte] !== undefined) {
+    const importe = cambios[campoImporte];
+    if (typeof importe !== 'number' || !Number.isFinite(importe) || importe < 0) {
+      throw new ErrorApi(400, `${campoImporte} debe ser un número mayor o igual a 0`);
+    }
+  }
+
+  if (cambios.importe_real !== undefined && cambios.importe_real !== null) {
+    if (typeof cambios.importe_real !== 'number' || cambios.importe_real < 0) {
+      throw new ErrorApi(400, 'importe_real debe ser un número mayor o igual a 0');
+    }
+  }
+
+  if (cambios.descripcion !== undefined) {
+    if (typeof cambios.descripcion !== 'string' || cambios.descripcion.trim().length === 0) {
+      throw new ErrorApi(400, 'descripcion no puede estar vacía');
+    }
+  }
+
+  for (const campoFecha of ['fecha_prevista', 'fecha_cobrada', 'fecha_pagada']) {
+    const valor = cambios[campoFecha];
+    if (valor !== undefined && valor !== null) {
+      if (typeof valor !== 'string' || !FECHA_REGEX.test(valor)) {
+        throw new ErrorApi(400, `${campoFecha} debe tener formato YYYY-MM-DD`);
+      }
+    }
+  }
+}
+
 export function parsearFiltrosListado(searchParams: URLSearchParams) {
   const espacio_id = searchParams.get('espacio_id');
   if (!espacio_id) {

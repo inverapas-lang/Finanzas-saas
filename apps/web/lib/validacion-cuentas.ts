@@ -45,3 +45,20 @@ export function validarPayloadCuenta(body: unknown): PayloadCuenta {
     saldo_actual: typeof b.saldo_actual === 'number' ? b.saldo_actual : 0,
   };
 }
+
+/** Validación de un PATCH parcial: solo valida los campos presentes en `cambios`. */
+export function validarCambiosCuenta(cambios: Record<string, unknown>): void {
+  if (cambios.nombre !== undefined) {
+    if (typeof cambios.nombre !== 'string' || cambios.nombre.trim().length === 0) {
+      throw new ErrorApi(400, 'nombre no puede estar vacío');
+    }
+  }
+  if (cambios.tipo !== undefined) {
+    if (typeof cambios.tipo !== 'string' || !TIPOS_CUENTA.includes(cambios.tipo as TipoCuenta)) {
+      throw new ErrorApi(400, `tipo debe ser uno de: ${TIPOS_CUENTA.join(', ')}`);
+    }
+  }
+  if (cambios.saldo_actual !== undefined && typeof cambios.saldo_actual !== 'number') {
+    throw new ErrorApi(400, 'saldo_actual debe ser un número');
+  }
+}

@@ -29,6 +29,35 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
     delete cambios.tipo; // cambiar el tipo de una categoría con movimientos ya asociados sería inconsistente
 
     const supabase = crearClienteSupabaseDeRequest(request);
+
+    if (cambios.categoria_padre_id) {
+      if (cambios.categoria_padre_id === id) {
+        throw new ErrorApi(400, 'Una categoría no puede ser su propio padre');
+      }
+
+      const { data: actual, error: errorActual } = await supabase
+        .from('categorias')
+        .select('espacio_id, tipo')
+        .eq('id', id)
+        .maybeSingle();
+      if (errorActual) throw new ErrorApi(500, errorActual.message);
+      if (!actual) throw new ErrorApi(404, 'Categoría no encontrada o sin acceso');
+
+      const { data: padre, error: errorPadre } = await supabase
+        .from('categorias')
+        .select('id, tipo, espacio_id')
+        .eq('id', cambios.categoria_padre_id)
+        .maybeSingle();
+      if (errorPadre) throw new ErrorApi(500, errorPadre.message);
+      if (!padre) throw new ErrorApi(404, 'categoria_padre_id no existe o no tienes acceso a ella');
+      if (padre.espacio_id !== actual.espacio_id) {
+        throw new ErrorApi(400, 'La categoría padre debe pertenecer al mismo espacio');
+      }
+      if (padre.tipo !== actual.tipo) {
+        throw new ErrorApi(400, 'La categoría padre debe ser del mismo tipo (ingreso/gasto)');
+      }
+    }
+
     const { data, error } = await supabase
       .from('categorias')
       .update(cambios)

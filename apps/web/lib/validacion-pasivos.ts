@@ -155,3 +155,47 @@ export function validarPayloadPasivo(body: unknown): PayloadPasivo {
     meses_tramo_fijo,
   };
 }
+
+/**
+ * Validación de un PATCH parcial: solo valida los campos presentes en
+ * `cambios`. Las reglas cruzadas específicas de hipoteca (tipo_tasa,
+ * indicador_referencia, diferencial, meses_tramo_fijo) ya están cubiertas
+ * por CHECK constraints en la migración 0005, así que aquí solo se valida
+ * lo que la base de datos no comprueba (p. ej. capital_inicial > 0).
+ */
+export function validarCambiosPasivo(cambios: Record<string, unknown>): void {
+  if (cambios.tipo !== undefined) {
+    if (typeof cambios.tipo !== 'string' || !TIPOS_PASIVO.includes(cambios.tipo as TipoPasivo)) {
+      throw new ErrorApi(400, `tipo debe ser uno de: ${TIPOS_PASIVO.join(', ')}`);
+    }
+  }
+  if (cambios.nombre !== undefined) {
+    if (typeof cambios.nombre !== 'string' || cambios.nombre.trim().length === 0) {
+      throw new ErrorApi(400, 'nombre no puede estar vacío');
+    }
+  }
+  if (cambios.capital_inicial !== undefined) {
+    if (typeof cambios.capital_inicial !== 'number' || cambios.capital_inicial <= 0) {
+      throw new ErrorApi(400, 'capital_inicial debe ser un número mayor que 0');
+    }
+  }
+  if (cambios.tipo_interes_anual !== undefined) {
+    if (typeof cambios.tipo_interes_anual !== 'number' || cambios.tipo_interes_anual < 0) {
+      throw new ErrorApi(400, 'tipo_interes_anual debe ser un número >= 0 (como fracción, ej. 0.031)');
+    }
+  }
+  if (cambios.plazo_meses !== undefined) {
+    if (
+      typeof cambios.plazo_meses !== 'number' ||
+      cambios.plazo_meses <= 0 ||
+      !Number.isInteger(cambios.plazo_meses)
+    ) {
+      throw new ErrorApi(400, 'plazo_meses debe ser un entero mayor que 0');
+    }
+  }
+  if (cambios.fecha_inicio !== undefined) {
+    if (typeof cambios.fecha_inicio !== 'string' || !FECHA_REGEX.test(cambios.fecha_inicio)) {
+      throw new ErrorApi(400, 'fecha_inicio debe tener formato YYYY-MM-DD');
+    }
+  }
+}

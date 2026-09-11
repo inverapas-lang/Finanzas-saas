@@ -63,8 +63,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Generar el cuadro de amortización real y, con la primera cuota, fijar
-    // el campo `cuota` del pasivo (hasta ahora era un 0 provisional).
-    await regenerarCuadroAmortizacion(supabase, pasivo);
+    // el campo `cuota` del pasivo (hasta ahora era un 0 provisional). Si esto
+    // falla, el pasivo recién creado quedaría huérfano (sin cuadro y con
+    // cuota=0 pero devolviendo un 500), así que lo borramos antes de
+    // propagar el error.
+    try {
+      await regenerarCuadroAmortizacion(supabase, pasivo);
+    } catch (errorCuadro) {
+      await supabase.from('pasivos').delete().eq('id', pasivo.id);
+      throw errorCuadro;
+    }
 
     const { data: primeraCuota } = await supabase
       .from('cuadro_amortizacion')
