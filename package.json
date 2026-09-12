@@ -7,6 +7,6 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=@finanzas-saas/web",
-    "test": "npm run test --workspace=@finanzas-saas/loan-engine && npm run test --workspace=@finanzas-saas/projection-engine"
+    "test": "npm run test --workspace=@finanzas-saas/loan-engine && npm run test --workspace=@finanzas-saas/projection-engine && npm run test --workspace=@finanzas-saas/web"
   }
 }

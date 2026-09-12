@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run"
   },
   "dependencies": {
     "next": "15.5.20",
@@ -23,6 +24,7 @@
     "typescript": "^5.4.0",
     "@types/node": "^20.14.0",
     "@types/react": "^19.0.0",
-    "@types/pdfkit": "^0.13.4"
+    "@types/pdfkit": "^0.13.4",
+    "vitest": "^4.1.10"
   }
 }
