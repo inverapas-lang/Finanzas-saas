@@ -12,6 +12,8 @@ export interface Notificacion {
   fecha: string;
   entidadTipo: 'gasto' | 'ingreso' | 'presupuesto';
   entidadId: string;
+  /** Importe previsto/esperado, para poder confirmar el pago/cobro sin otra consulta. null en presupuestos. */
+  importe: number | null;
 }
 
 function sumarDias(fechaIso: string, dias: number): string {
@@ -71,6 +73,7 @@ export async function GET(request: NextRequest) {
         fecha: g.fecha_prevista,
         entidadTipo: 'gasto',
         entidadId: g.id,
+        importe: g.importe_previsto,
       });
     }
 
@@ -84,6 +87,7 @@ export async function GET(request: NextRequest) {
         fecha: i.fecha_prevista,
         entidadTipo: 'ingreso',
         entidadId: i.id,
+        importe: i.importe_esperado,
       });
     }
 
@@ -123,6 +127,7 @@ export async function GET(request: NextRequest) {
             fecha: hoy,
             entidadTipo: 'presupuesto',
             entidadId: p.id,
+            importe: null,
           });
         }
       }

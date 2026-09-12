@@ -13,6 +13,9 @@ import {
   Bell,
   Sparkles,
   LogOut,
+  Repeat,
+  Target,
+  BarChart3,
 } from 'lucide-react';
 
 interface Props {
@@ -27,9 +30,12 @@ const ITEMS = [
   { href: '/dashboard', etiqueta: 'Panel', Icono: LayoutDashboard },
   { href: '/dashboard/chat', etiqueta: 'Asistente financiero', Icono: Sparkles },
   { href: '/dashboard/movimientos', etiqueta: 'Movimientos', Icono: Receipt },
+  { href: '/dashboard/reglas-recurrentes', etiqueta: 'Reglas recurrentes', Icono: Repeat },
   { href: '/dashboard/presupuestos', etiqueta: 'Presupuestos', Icono: PiggyBank },
+  { href: '/dashboard/metas', etiqueta: 'Metas de ahorro', Icono: Target },
   { href: '/dashboard/pasivos', etiqueta: 'Préstamos e hipotecas', Icono: Landmark },
   { href: '/dashboard/activos', etiqueta: 'Activos', Icono: Wallet },
+  { href: '/dashboard/graficos', etiqueta: 'Gráficos', Icono: BarChart3 },
   { href: '/dashboard/usuarios', etiqueta: 'Usuarios', Icono: Users },
 ];
 
