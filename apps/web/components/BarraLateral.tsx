@@ -18,6 +18,7 @@ import {
   BarChart3,
   Building2,
   Tags,
+  FileBarChart,
 } from 'lucide-react';
 
 interface Props {
@@ -39,6 +40,7 @@ const ITEMS = [
   { href: '/dashboard/pasivos', etiqueta: 'Préstamos e hipotecas', Icono: Landmark },
   { href: '/dashboard/activos', etiqueta: 'Activos', Icono: Wallet },
   { href: '/dashboard/bancos', etiqueta: 'Bancos', Icono: Building2 },
+  { href: '/dashboard/informes', etiqueta: 'Informes', Icono: FileBarChart },
   { href: '/dashboard/graficos', etiqueta: 'Gráficos', Icono: BarChart3 },
   { href: '/dashboard/usuarios', etiqueta: 'Usuarios', Icono: Users },
 ];

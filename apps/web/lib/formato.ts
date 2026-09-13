@@ -71,3 +71,10 @@ const formateadorFecha = new Intl.DateTimeFormat('es-ES', {
 export function formatearFecha(fechaIso: string): string {
   return formateadorFecha.format(new Date(fechaIso + 'T00:00:00'));
 }
+
+const formateadorMes = new Intl.DateTimeFormat('es-ES', { month: 'short', year: 'numeric' });
+
+/** Formatea un mes 'YYYY-MM' (como los que usan los informes/gráficos) como "ene 2026". */
+export function formatearMes(mesIso: string): string {
+  return formateadorMes.format(new Date(`${mesIso}-01T00:00:00`));
+}
