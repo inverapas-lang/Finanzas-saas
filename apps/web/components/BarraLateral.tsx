@@ -16,6 +16,7 @@ import {
   Repeat,
   Target,
   BarChart3,
+  Building2,
 } from 'lucide-react';
 
 interface Props {
@@ -35,6 +36,7 @@ const ITEMS = [
   { href: '/dashboard/metas', etiqueta: 'Metas de ahorro', Icono: Target },
   { href: '/dashboard/pasivos', etiqueta: 'Préstamos e hipotecas', Icono: Landmark },
   { href: '/dashboard/activos', etiqueta: 'Activos', Icono: Wallet },
+  { href: '/dashboard/bancos', etiqueta: 'Bancos', Icono: Building2 },
   { href: '/dashboard/graficos', etiqueta: 'Gráficos', Icono: BarChart3 },
   { href: '/dashboard/usuarios', etiqueta: 'Usuarios', Icono: Users },
 ];
