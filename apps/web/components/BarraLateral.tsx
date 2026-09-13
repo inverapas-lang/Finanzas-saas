@@ -17,6 +17,7 @@ import {
   Target,
   BarChart3,
   Building2,
+  Tags,
 } from 'lucide-react';
 
 interface Props {
@@ -31,6 +32,7 @@ const ITEMS = [
   { href: '/dashboard', etiqueta: 'Panel', Icono: LayoutDashboard },
   { href: '/dashboard/chat', etiqueta: 'Asistente financiero', Icono: Sparkles },
   { href: '/dashboard/movimientos', etiqueta: 'Movimientos', Icono: Receipt },
+  { href: '/dashboard/categorias', etiqueta: 'Categorías', Icono: Tags },
   { href: '/dashboard/reglas-recurrentes', etiqueta: 'Reglas recurrentes', Icono: Repeat },
   { href: '/dashboard/presupuestos', etiqueta: 'Presupuestos', Icono: PiggyBank },
   { href: '/dashboard/metas', etiqueta: 'Metas de ahorro', Icono: Target },
