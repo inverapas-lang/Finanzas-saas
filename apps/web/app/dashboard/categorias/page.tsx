@@ -241,6 +241,24 @@ function FormularioCategorias({
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<string | null>(null);
 
+  // Este formulario es un único componente reutilizado al cambiar entre las
+  // pestañas Ingresos/Gastos (el cambio de pestaña vive en el padre, no
+  // aquí), así que su estado no se reinicia solo. Sin esto, "padreId" podía
+  // quedarse apuntando a una categoría de otro tipo (o ya borrada) que el
+  // <select> ya no lista — se ve como "Ninguna" en pantalla porque el
+  // navegador no encuentra esa opción y muestra la primera por defecto,
+  // pero por dentro se seguía enviando el id viejo, y el backend lo
+  // rechazaba con "la categoría padre debe ser del mismo tipo".
+  useEffect(() => {
+    setPadreId('');
+  }, [tipo]);
+
+  useEffect(() => {
+    if (padreId && !categoriasRaiz.some((c) => c.id === padreId)) {
+      setPadreId('');
+    }
+  }, [categoriasRaiz, padreId]);
+
   async function crearUna(evento: React.FormEvent) {
     evento.preventDefault();
     setGuardando(true);
