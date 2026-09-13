@@ -15,7 +15,10 @@ insert into storage.buckets (id, name, public)
 values ('documentos', 'documentos', false)
 on conflict (id) do nothing;
 
-comment on table storage.objects is 'Tabla de sistema de Supabase Storage. Las políticas específicas del bucket "documentos" están en esta migración.';
+-- No se pone `comment on table storage.objects` aquí: esa tabla es del
+-- propio sistema de Supabase Storage, y el rol con el que corren las
+-- migraciones no es su dueño (falla con "must be owner of table objects").
+-- Las políticas de abajo sí se pueden crear sin ser el dueño de la tabla.
 
 create policy documentos_storage_select on storage.objects
     for select
