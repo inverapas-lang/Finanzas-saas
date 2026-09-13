@@ -6,6 +6,8 @@ import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
 import { formatearMoneda, formatearMes } from '../../../lib/formato';
 import { BarraLateral } from '../../../components/BarraLateral';
 import { GraficoSVG, type SerieGrafico } from '../../../components/GraficoSVG';
+import { BotonesExportarTablas } from '../../../components/BotonesExportarTablas';
+import type { HojaExportable } from '../../../lib/exportar-tablas';
 import {
   agruparIngresosYGastosPorMes,
   agruparPorCategoriaYMes,
@@ -137,15 +139,54 @@ export default function PaginaInformes() {
   const filasIngresosPorCategoria = agruparPorCategoriaYMes(ingresos, categorias, meses);
   const filasGastosPorCategoria = agruparPorCategoriaYMes(gastos, categorias, meses);
 
+  function construirHojasInforme(): HojaExportable[] {
+    const hojas: HojaExportable[] = [
+      {
+        titulo: 'Resumen',
+        columnas: ['Concepto', 'Importe'],
+        filas: [
+          ['Total ingresos', totalIngresos],
+          ['Total gastos', totalGastos],
+          ['Saldo', saldo],
+        ],
+      },
+    ];
+
+    if (filasMensuales.length > 0) {
+      hojas.push({
+        titulo: 'Detalle mensual',
+        columnas: ['Mes', 'Ingresos', 'Gastos', 'Saldo'],
+        filas: filasMensuales.map((f) => [formatearMes(f.mes), f.ingresos, f.gastos, f.saldo]),
+      });
+    }
+
+    for (const [titulo, filasCategoria] of [
+      ['Ingresos por categoría', filasIngresosPorCategoria],
+      ['Gastos por categoría', filasGastosPorCategoria],
+    ] as const) {
+      if (filasCategoria.length === 0) continue;
+      hojas.push({
+        titulo,
+        columnas: ['Categoría', ...meses.map(formatearMes), 'Total'],
+        filas: filasCategoria.map((f) => [f.categoriaNombre, ...meses.map((m) => f.porMes[m] ?? 0), f.total]),
+      });
+    }
+
+    return hojas;
+  }
+
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
       <main className="contenido" style={{ maxWidth: 960, padding: '40px 48px' }}>
-        <header style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Informes</h1>
-          <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>
-            Todo lo acumulado, con desglose por categoría y detalle mes a mes.
-          </p>
+        <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Informes</h1>
+            <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>
+              Todo lo acumulado, con desglose por categoría y detalle mes a mes.
+            </p>
+          </div>
+          {token && <BotonesExportarTablas token={token} titulo="Informe financiero" construirHojas={construirHojasInforme} />}
         </header>
 
         {error && <p className="mensaje-error" style={{ marginBottom: 24 }}>{error}</p>}
