@@ -164,6 +164,115 @@ h1, h2, h3 {
 .contenido {
   flex: 1;
   min-width: 0;
+  /* Mismo aire que antes en escritorio (40/48px), pero se reduce en
+     pantallas estrechas en vez de quedarse fijo — con clamp() nunca baja
+     de 16px de margen lateral, el mínimo pedido para no pegar el
+     contenido al borde en móvil. */
+  padding: clamp(16px, 4vw, 40px) clamp(16px, 5vw, 48px);
+}
+
+/* --- Barra lateral en móvil: pasa de fija a cajón deslizante --- */
+
+.sidebar-topbar {
+  display: none;
+}
+
+.boton-hamburguesa {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  cursor: pointer;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.boton-cerrar-sidebar {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 4px;
+  margin-left: auto;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .app-layout {
+    display: block;
+  }
+
+  .sidebar-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(240px, 82vw);
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform var(--transicion);
+  }
+
+  .sidebar.sidebar-abierta {
+    transform: translateX(0);
+    box-shadow: var(--sombra-tarjeta-hover);
+  }
+
+  .boton-cerrar-sidebar {
+    display: block;
+  }
+
+  .sidebar-overlay.visible {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 15, 15, 0.35);
+    z-index: 190;
+  }
+
+  .contenido {
+    width: 100%;
+  }
+}
+
+/* --- Rejillas de "lista + formulario" o de campos de un modal: en
+   escritorio van a dos columnas, en móvil se apilan en una sola. Se usa
+   !important porque el ratio de columnas concreto (1.3fr 1fr, etc.) se
+   define inline en cada pantalla y sería más frágil duplicarlo aquí. --- */
+@media (max-width: 680px) {
+  .grid-2col,
+  .grid-form-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grid-meses {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+.tabla-scroll {
+  overflow-x: auto;
 }
 
 /* --- Utilidades compartidas --- */

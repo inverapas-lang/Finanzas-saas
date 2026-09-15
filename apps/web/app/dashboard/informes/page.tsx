@@ -178,7 +178,7 @@ export default function PaginaInformes() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 960, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 960 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Informes</h1>
@@ -378,6 +378,7 @@ function DetalleMensualCompleto({
       </button>
 
       {abierta && (
+        <div className="tabla-scroll">
         <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, borderTop: '1px solid var(--color-border)' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
@@ -404,6 +405,7 @@ function DetalleMensualCompleto({
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

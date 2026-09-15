@@ -301,7 +301,7 @@ export default function PaginaGraficos() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 900, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 900 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Gráficos</h1>
           <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>

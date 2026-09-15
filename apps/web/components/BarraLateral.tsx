@@ -19,6 +19,8 @@ import {
   Building2,
   Tags,
   FileBarChart,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface Props {
@@ -49,6 +51,7 @@ export function BarraLateral({ nombreEspacio, onCerrarSesion, espacioId, token }
   const pathname = usePathname();
   const inicial = nombreEspacio.trim().charAt(0).toUpperCase() || '?';
   const [numNotificaciones, setNumNotificaciones] = useState<number | null>(null);
+  const [abierta, setAbierta] = useState(false);
 
   useEffect(() => {
     if (!espacioId || !token) return;
@@ -60,12 +63,32 @@ export function BarraLateral({ nombreEspacio, onCerrarSesion, espacioId, token }
       .catch(() => setNumNotificaciones(null));
   }, [espacioId, token]);
 
+  // Al navegar a otra pantalla (móvil), el cajón se cierra solo — si se
+  // quedara abierto, taparía la pantalla nueva hasta que el usuario lo
+  // cerrara a mano.
+  useEffect(() => {
+    setAbierta(false);
+  }, [pathname]);
+
   return (
-    <nav className="sidebar">
-      <div className="sidebar-cabecera">
-        <div className="sidebar-avatar">{inicial}</div>
+    <>
+      <div className="sidebar-topbar">
+        <button className="boton-hamburguesa" onClick={() => setAbierta(true)} aria-label="Abrir menú">
+          <Menu size={20} strokeWidth={1.75} />
+        </button>
         <span className="sidebar-titulo">{nombreEspacio}</span>
       </div>
+
+      <div className={`sidebar-overlay ${abierta ? 'visible' : ''}`} onClick={() => setAbierta(false)} />
+
+      <nav className={`sidebar ${abierta ? 'sidebar-abierta' : ''}`}>
+        <div className="sidebar-cabecera">
+          <div className="sidebar-avatar">{inicial}</div>
+          <span className="sidebar-titulo">{nombreEspacio}</span>
+          <button className="boton-cerrar-sidebar" onClick={() => setAbierta(false)} aria-label="Cerrar menú">
+            <X size={18} strokeWidth={1.75} />
+          </button>
+        </div>
 
       <Link
         href="/dashboard/notificaciones"
@@ -104,11 +127,12 @@ export function BarraLateral({ nombreEspacio, onCerrarSesion, espacioId, token }
         </Link>
       ))}
 
-      <div style={{ flex: 1 }} />
-      <button className="sidebar-item" onClick={onCerrarSesion}>
-        <LogOut size={16} strokeWidth={1.75} />
-        Cerrar sesión
-      </button>
-    </nav>
+        <div style={{ flex: 1 }} />
+        <button className="sidebar-item" onClick={onCerrarSesion}>
+          <LogOut size={16} strokeWidth={1.75} />
+          Cerrar sesión
+        </button>
+      </nav>
+    </>
   );
 }

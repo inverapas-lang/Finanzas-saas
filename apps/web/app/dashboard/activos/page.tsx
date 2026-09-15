@@ -108,7 +108,7 @@ export default function PaginaActivos() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 880, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Activos</h1>
@@ -132,7 +132,7 @@ export default function PaginaActivos() {
           </p>
         )}
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
+        <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {activos.length === 0 ? (
               <div className="tarjeta">

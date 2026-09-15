@@ -213,7 +213,7 @@ export default function PaginaDashboard() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 880, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Panel</h1>
@@ -290,7 +290,7 @@ export default function PaginaDashboard() {
         </section>
       )}
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
+      <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
         <div>
           <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
             Ingresos
@@ -301,6 +301,7 @@ export default function PaginaDashboard() {
                 Aún no hay ingresos aquí. Añade el primero con el formulario de la derecha.
               </p>
             ) : (
+              <div className="tabla-scroll">
               <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
                   {ingresos.map((ingreso, i) => (
@@ -326,6 +327,7 @@ export default function PaginaDashboard() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>

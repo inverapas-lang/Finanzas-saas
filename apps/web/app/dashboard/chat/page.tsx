@@ -137,10 +137,9 @@ export default function PaginaChat() {
         className="contenido"
         style={{
           maxWidth: 780,
-          padding: '40px 48px',
           display: 'flex',
           flexDirection: 'column',
-          height: '100vh',
+          height: '100dvh',
           boxSizing: 'border-box',
         }}
       >

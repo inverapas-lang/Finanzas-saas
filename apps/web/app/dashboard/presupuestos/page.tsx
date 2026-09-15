@@ -129,7 +129,7 @@ export default function PaginaPresupuestos() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 880, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Presupuestos</h1>
           <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>
@@ -150,7 +150,7 @@ export default function PaginaPresupuestos() {
           </p>
         )}
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
+        <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {presupuestos.length === 0 ? (
               <div className="tarjeta">

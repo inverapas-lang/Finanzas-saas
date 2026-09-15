@@ -104,7 +104,7 @@ export default function PaginaCategorias() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 900, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 900 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Categorías</h1>
           <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>
@@ -123,7 +123,7 @@ export default function PaginaCategorias() {
           </BotonPestana>
         </div>
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
+        <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
               {pestana === 'ingreso' ? 'Categorías de ingreso' : 'Categorías de gasto'} ({categoriasDelTipo.length})

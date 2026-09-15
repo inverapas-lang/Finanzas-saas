@@ -136,7 +136,7 @@ export default function PaginaNotificaciones() {
         espacioId={espacio?.id}
         token={token ?? undefined}
       />
-      <main className="contenido" style={{ maxWidth: 720, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 720 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Notificaciones</h1>
           <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>

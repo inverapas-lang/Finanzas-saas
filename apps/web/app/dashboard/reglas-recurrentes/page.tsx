@@ -147,7 +147,7 @@ export default function PaginaReglasRecurrentes() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 840, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 840 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Reglas recurrentes</h1>
@@ -368,7 +368,7 @@ function ModalRegla({
           />
         </label>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <label style={{ fontSize: 13, fontWeight: 500 }}>
             Importe (€)
             <input

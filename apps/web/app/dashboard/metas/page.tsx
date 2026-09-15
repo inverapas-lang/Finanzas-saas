@@ -107,7 +107,7 @@ export default function PaginaMetas() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 960, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 960 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Metas de ahorro</h1>
           <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>
@@ -118,7 +118,7 @@ export default function PaginaMetas() {
 
         {error && <p className="mensaje-error" style={{ marginBottom: 24 }}>{error}</p>}
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
+        <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
           {token && espacio && (
             <>
               <div>

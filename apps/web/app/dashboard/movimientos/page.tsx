@@ -131,7 +131,7 @@ export default function PaginaMovimientos() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 960, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 960 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Movimientos</h1>
@@ -173,7 +173,7 @@ export default function PaginaMovimientos() {
           </p>
         )}
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
+        <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
           {token && espacio && pestana === 'ingresos' && (
             <>
               <ListaIngresos
@@ -293,6 +293,7 @@ function ListaIngresos({
         {ingresos.length === 0 ? (
           <p className="estado-vacio">Aún no hay ingresos aquí. Añade el primero con el formulario de la derecha.</p>
         ) : (
+          <div className="tabla-scroll">
           <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <tbody>
               {ingresos.map((ingreso, i) => (
@@ -312,6 +313,7 @@ function ListaIngresos({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
@@ -355,6 +357,7 @@ function ListaGastos({
         {gastos.length === 0 ? (
           <p className="estado-vacio">Aún no hay gastos aquí. Añade el primero con el formulario de la derecha.</p>
         ) : (
+          <div className="tabla-scroll">
           <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <tbody>
               {gastos.map((gasto, i) => (
@@ -374,6 +377,7 @@ function ListaGastos({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
@@ -1082,7 +1086,7 @@ function ModalCargaMasiva({
           </BotonPestana>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div className="grid-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <CampoTexto
             etiqueta="Descripción base"
             valor={descripcionBase}
@@ -1189,7 +1193,7 @@ function ModalCargaMasiva({
                 /* solo se usa para capturar el pegado; el detalle se edita abajo */
               }}
             />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+            <div className="grid-meses" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
               {filas.map((f) => (
                 <label key={f.mes} style={{ fontSize: 12 }}>
                   {NOMBRES_MES[f.mes - 1].slice(0, 3)}

@@ -120,7 +120,7 @@ export default function PaginaPasivos() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 880, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 32 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Préstamos e hipotecas</h1>
           <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>
@@ -134,7 +134,7 @@ export default function PaginaPasivos() {
           </p>
         )}
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
+        <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {pasivos.length === 0 ? (
               <div className="tarjeta">
@@ -202,6 +202,7 @@ function TablaCuadro({ filas }: { filas: FilaCuadro[] }) {
 
   return (
     <div style={{ marginTop: 16, border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}>
+      <div className="tabla-scroll">
       <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
@@ -235,6 +236,7 @@ function TablaCuadro({ filas }: { filas: FilaCuadro[] }) {
           ))}
         </tbody>
       </table>
+      </div>
 
       {totalPaginas > 1 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>

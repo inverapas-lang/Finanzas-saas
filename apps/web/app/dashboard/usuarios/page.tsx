@@ -103,7 +103,7 @@ export default function PaginaUsuarios() {
   return (
     <div className="app-layout">
       <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
-      <main className="contenido" style={{ maxWidth: 880, padding: '40px 48px' }}>
+      <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Usuarios</h1>
           <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>
@@ -117,24 +117,26 @@ export default function PaginaUsuarios() {
           </p>
         )}
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
+        <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>
           <div className="tarjeta" style={{ padding: 0 }}>
-            <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                {miembros.map((m, i) => (
-                  <FilaMiembro
-                    key={m.id}
-                    miembro={m}
-                    esUltima={i === miembros.length - 1}
-                    esUnoMismo={m.usuario_id === miUsuarioId}
-                    puedeEliminar={soyOwner && m.rol !== 'owner' && m.usuario_id !== miUsuarioId}
-                    token={token!}
-                    espacioId={espacio!.id}
-                    onCambio={() => cargarMiembros(token!, espacio!.id)}
-                  />
-                ))}
-              </tbody>
-            </table>
+            <div className="tabla-scroll">
+              <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {miembros.map((m, i) => (
+                    <FilaMiembro
+                      key={m.id}
+                      miembro={m}
+                      esUltima={i === miembros.length - 1}
+                      esUnoMismo={m.usuario_id === miUsuarioId}
+                      puedeEliminar={soyOwner && m.rol !== 'owner' && m.usuario_id !== miUsuarioId}
+                      token={token!}
+                      espacioId={espacio!.id}
+                      onCambio={() => cargarMiembros(token!, espacio!.id)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {token && espacio && soyOwner && (
