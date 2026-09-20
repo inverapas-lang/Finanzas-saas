@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
 import { useEspacioActivo } from '../../../lib/useEspacioActivo';
@@ -30,6 +30,14 @@ export default function PaginaMetas() {
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Guarda de qué espacio es la petición más reciente en vuelo — si al
+  // cambiar de espacio la respuesta del anterior llega tarde, no debe pisar
+  // la pantalla que ya muestra el espacio nuevo.
+  const espacioIdVigente = useRef<string | null>(null);
+  useEffect(() => {
+    espacioIdVigente.current = espacio?.id ?? null;
+  }, [espacio]);
+
   const cargarTodo = useCallback(async (accessToken: string, espacioId: string) => {
     const headers = { Authorization: `Bearer ${accessToken}` };
     const [resMetas, resCuentas] = await Promise.all([
@@ -37,8 +45,10 @@ export default function PaginaMetas() {
       fetch(`/api/cuentas-bancarias?espacio_id=${espacioId}`, { headers }),
     ]);
     if (!resMetas.ok || !resCuentas.ok) throw new Error('No se han podido cargar las metas de ahorro.');
-    setMetas((await resMetas.json()).data ?? []);
-    setCuentas((await resCuentas.json()).data ?? []);
+    const [datosMetas, datosCuentas] = await Promise.all([resMetas.json(), resCuentas.json()]);
+    if (espacioIdVigente.current !== espacioId) return;
+    setMetas(datosMetas.data ?? []);
+    setCuentas(datosCuentas.data ?? []);
   }, []);
 
   useEffect(() => {

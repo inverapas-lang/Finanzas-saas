@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
 import { useEspacioActivo } from '../../../lib/useEspacioActivo';
@@ -35,6 +35,14 @@ export default function PaginaInformes() {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
 
+  // Guarda de qué espacio es la petición más reciente en vuelo — si al
+  // cambiar de espacio la respuesta del anterior llega tarde, no debe pisar
+  // la pantalla que ya muestra el espacio nuevo.
+  const espacioIdVigente = useRef<string | null>(null);
+  useEffect(() => {
+    espacioIdVigente.current = espacio?.id ?? null;
+  }, [espacio]);
+
   const cargarDatos = useCallback(async (accessToken: string, espacioId: string, filtroDesde: string, filtroHasta: string) => {
     const headers = { Authorization: `Bearer ${accessToken}` };
     const filtro = `${filtroDesde ? `&desde=${filtroDesde}` : ''}${filtroHasta ? `&hasta=${filtroHasta}` : ''}`;
@@ -46,9 +54,15 @@ export default function PaginaInformes() {
     if (!resCategorias.ok || !resIngresos.ok || !resGastos.ok) {
       throw new Error('No se han podido cargar los datos para el informe.');
     }
-    setCategorias((await resCategorias.json()).data ?? []);
-    setIngresos((await resIngresos.json()).data ?? []);
-    setGastos((await resGastos.json()).data ?? []);
+    const [datosCategorias, datosIngresos, datosGastos] = await Promise.all([
+      resCategorias.json(),
+      resIngresos.json(),
+      resGastos.json(),
+    ]);
+    if (espacioIdVigente.current !== espacioId) return;
+    setCategorias(datosCategorias.data ?? []);
+    setIngresos(datosIngresos.data ?? []);
+    setGastos(datosGastos.data ?? []);
   }, []);
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
 import { useEspacioActivo } from '../../../lib/useEspacioActivo';
@@ -21,12 +21,22 @@ export default function PaginaCategorias() {
   const [pestana, setPestana] = useState<'ingreso' | 'gasto'>('gasto');
   const [error, setError] = useState<string | null>(null);
 
+  // Guarda de qué espacio es la petición más reciente en vuelo — si al
+  // cambiar de espacio la respuesta del anterior llega tarde, no debe pisar
+  // la lista de categorías del espacio ya seleccionado.
+  const espacioIdVigente = useRef<string | null>(null);
+  useEffect(() => {
+    espacioIdVigente.current = espacio?.id ?? null;
+  }, [espacio]);
+
   const cargarCategorias = useCallback(async (accessToken: string, espacioId: string) => {
     const respuesta = await fetch(`/api/categorias?espacio_id=${espacioId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!respuesta.ok) throw new Error('No se han podido cargar las categorías.');
-    setCategorias((await respuesta.json()).data ?? []);
+    const cuerpo = await respuesta.json();
+    if (espacioIdVigente.current !== espacioId) return;
+    setCategorias(cuerpo.data ?? []);
   }, []);
 
   useEffect(() => {

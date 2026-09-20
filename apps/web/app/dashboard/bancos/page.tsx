@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
 import { useEspacioActivo } from '../../../lib/useEspacioActivo';
@@ -46,12 +46,22 @@ export default function PaginaBancos() {
   const [error, setError] = useState<string | null>(null);
   const [mostrarSelector, setMostrarSelector] = useState(false);
 
+  // Guarda de qué espacio es la petición más reciente en vuelo — si al
+  // cambiar de espacio la respuesta del anterior llega tarde, no debe pisar
+  // la pantalla que ya muestra el espacio nuevo.
+  const espacioIdVigente = useRef<string | null>(null);
+  useEffect(() => {
+    espacioIdVigente.current = espacio?.id ?? null;
+  }, [espacio]);
+
   const cargarConexiones = useCallback(async (accessToken: string, espacioId: string) => {
     const respuesta = await fetch(`/api/bancos/conexiones?espacio_id=${espacioId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!respuesta.ok) throw new Error('No se han podido cargar las conexiones bancarias.');
-    setConexiones((await respuesta.json()).data ?? []);
+    const cuerpo = await respuesta.json();
+    if (espacioIdVigente.current !== espacioId) return;
+    setConexiones(cuerpo.data ?? []);
   }, []);
 
   useEffect(() => {

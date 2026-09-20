@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { ErrorApi } from './supabase-server';
 
 export type TipoMovimientoApi = 'ingreso' | 'gasto';
@@ -23,6 +24,9 @@ export interface PayloadMovimiento {
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+// Debe coincidir con el enum "periodicidad" de la migración 0001_core_schema.sql.
+const PERIODICIDADES = ['unico', 'semanal', 'mensual', 'bimestral', 'trimestral', 'semestral', 'anual'];
 
 /**
  * Validación manual deliberadamente explícita (sin librería externa) para
@@ -67,9 +71,13 @@ export function validarPayloadMovimiento(
   }
 
   if (b.importe_real !== undefined && b.importe_real !== null) {
-    if (typeof b.importe_real !== 'number' || b.importe_real < 0) {
+    if (typeof b.importe_real !== 'number' || !Number.isFinite(b.importe_real) || b.importe_real < 0) {
       throw new ErrorApi(400, 'importe_real debe ser un número mayor o igual a 0');
     }
+  }
+
+  if (b.periodicidad !== undefined && !PERIODICIDADES.includes(b.periodicidad as string)) {
+    throw new ErrorApi(400, `periodicidad debe ser una de: ${PERIODICIDADES.join(', ')}`);
   }
 
   const payload: PayloadMovimiento = {
@@ -117,9 +125,17 @@ export function validarCambiosMovimiento(
   }
 
   if (cambios.importe_real !== undefined && cambios.importe_real !== null) {
-    if (typeof cambios.importe_real !== 'number' || cambios.importe_real < 0) {
+    if (
+      typeof cambios.importe_real !== 'number' ||
+      !Number.isFinite(cambios.importe_real) ||
+      cambios.importe_real < 0
+    ) {
       throw new ErrorApi(400, 'importe_real debe ser un número mayor o igual a 0');
     }
+  }
+
+  if (cambios.periodicidad !== undefined && !PERIODICIDADES.includes(cambios.periodicidad as string)) {
+    throw new ErrorApi(400, `periodicidad debe ser una de: ${PERIODICIDADES.join(', ')}`);
   }
 
   if (cambios.descripcion !== undefined) {
@@ -134,6 +150,51 @@ export function validarCambiosMovimiento(
       if (typeof valor !== 'string' || !FECHA_REGEX.test(valor)) {
         throw new ErrorApi(400, `${campoFecha} debe tener formato YYYY-MM-DD`);
       }
+    }
+  }
+}
+
+/**
+ * Verifica que categoria_id, subcategoria_id y cuenta_id (si vienen
+ * informados) existan, pertenezcan al mismo espacio_id del movimiento y
+ * sean del tipo correcto — igual que ya hacen reglas-recurrentes y metas.
+ * Sin esto, un usuario podría enlazar un ingreso/gasto de su espacio a una
+ * cuenta o categoría de un espacio ajeno del que solo conozca el UUID.
+ */
+export async function verificarCategoriaYCuenta(
+  supabase: SupabaseClient,
+  espacioId: string,
+  tipo: TipoMovimientoApi,
+  campos: { categoria_id?: string | null; subcategoria_id?: string | null; cuenta_id?: string | null }
+): Promise<void> {
+  for (const campo of ['categoria_id', 'subcategoria_id'] as const) {
+    const categoriaId = campos[campo];
+    if (!categoriaId) continue;
+    const { data, error } = await supabase
+      .from('categorias')
+      .select('id, tipo, espacio_id')
+      .eq('id', categoriaId)
+      .maybeSingle();
+    if (error) throw new ErrorApi(500, error.message);
+    if (!data) throw new ErrorApi(404, `${campo} no existe o no tienes acceso a ella`);
+    if (data.espacio_id !== espacioId) {
+      throw new ErrorApi(400, `${campo === 'categoria_id' ? 'La categoría' : 'La subcategoría'} debe pertenecer al mismo espacio`);
+    }
+    if (data.tipo !== tipo) {
+      throw new ErrorApi(400, `${campo === 'categoria_id' ? 'La categoría' : 'La subcategoría'} debe ser del mismo tipo (ingreso/gasto)`);
+    }
+  }
+
+  if (campos.cuenta_id) {
+    const { data, error } = await supabase
+      .from('cuentas_bancarias')
+      .select('id, espacio_id')
+      .eq('id', campos.cuenta_id)
+      .maybeSingle();
+    if (error) throw new ErrorApi(500, error.message);
+    if (!data) throw new ErrorApi(404, 'cuenta_id no existe o no tienes acceso a ella');
+    if (data.espacio_id !== espacioId) {
+      throw new ErrorApi(400, 'La cuenta debe pertenecer al mismo espacio');
     }
   }
 }

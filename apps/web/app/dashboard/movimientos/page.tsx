@@ -52,6 +52,15 @@ export default function PaginaMovimientos() {
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Guarda de qué espacio es la petición más reciente en vuelo. Al cambiar
+  // de espacio con el selector, si la respuesta del espacio anterior llega
+  // tarde (red lenta, orden de resolución no garantizado) no debe pisar la
+  // pantalla que ya muestra el espacio nuevo.
+  const espacioIdVigente = useRef<string | null>(null);
+  useEffect(() => {
+    espacioIdVigente.current = espacio?.id ?? null;
+  }, [espacio]);
+
   const cargarTodo = useCallback(async (accessToken: string, espacioId: string) => {
     const headers = { Authorization: `Bearer ${accessToken}` };
     const [resCuentas, resCategorias, resIngresos, resGastos] = await Promise.all([
@@ -63,10 +72,17 @@ export default function PaginaMovimientos() {
     if (!resCuentas.ok || !resCategorias.ok || !resIngresos.ok || !resGastos.ok) {
       throw new Error('No se han podido cargar los movimientos.');
     }
-    setCuentas((await resCuentas.json()).data ?? []);
-    setCategorias((await resCategorias.json()).data ?? []);
-    setIngresos((await resIngresos.json()).data ?? []);
-    setGastos((await resGastos.json()).data ?? []);
+    const [datosCuentas, datosCategorias, datosIngresos, datosGastos] = await Promise.all([
+      resCuentas.json(),
+      resCategorias.json(),
+      resIngresos.json(),
+      resGastos.json(),
+    ]);
+    if (espacioIdVigente.current !== espacioId) return;
+    setCuentas(datosCuentas.data ?? []);
+    setCategorias(datosCategorias.data ?? []);
+    setIngresos(datosIngresos.data ?? []);
+    setGastos(datosGastos.data ?? []);
   }, []);
 
   useEffect(() => {

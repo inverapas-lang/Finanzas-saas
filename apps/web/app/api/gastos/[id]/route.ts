@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { crearClienteSupabaseDeRequest, ErrorApi } from '../../../../lib/supabase-server';
-import { validarCambiosMovimiento } from '../../../../lib/validacion-movimientos';
+import { validarCambiosMovimiento, verificarCategoriaYCuenta } from '../../../../lib/validacion-movimientos';
 
 interface Contexto {
   params: Promise<{ id: string }>;
@@ -38,6 +38,18 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
     validarCambiosMovimiento(cambios, 'gasto');
 
     const supabase = crearClienteSupabaseDeRequest(request);
+
+    if (cambios.categoria_id || cambios.subcategoria_id || cambios.cuenta_id) {
+      const { data: actual, error: errorActual } = await supabase
+        .from('gastos')
+        .select('espacio_id')
+        .eq('id', id)
+        .maybeSingle();
+      if (errorActual) throw new ErrorApi(500, errorActual.message);
+      if (!actual) throw new ErrorApi(404, 'Gasto no encontrado o sin acceso');
+      await verificarCategoriaYCuenta(supabase, actual.espacio_id, 'gasto', cambios);
+    }
+
     const { data, error } = await supabase
       .from('gastos')
       .update(cambios)

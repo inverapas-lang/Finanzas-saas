@@ -74,12 +74,12 @@ export function validarPayloadPasivo(body: unknown): PayloadPasivo {
   }
 
   const capital_inicial = requerido('capital_inicial');
-  if (typeof capital_inicial !== 'number' || capital_inicial <= 0) {
+  if (typeof capital_inicial !== 'number' || !Number.isFinite(capital_inicial) || capital_inicial <= 0) {
     throw new ErrorApi(400, 'capital_inicial debe ser un número mayor que 0');
   }
 
   const tipo_interes_anual = requerido('tipo_interes_anual');
-  if (typeof tipo_interes_anual !== 'number' || tipo_interes_anual < 0) {
+  if (typeof tipo_interes_anual !== 'number' || !Number.isFinite(tipo_interes_anual) || tipo_interes_anual < 0) {
     throw new ErrorApi(400, 'tipo_interes_anual debe ser un número >= 0 (como fracción, ej. 0.031)');
   }
 
@@ -121,7 +121,7 @@ export function validarPayloadPasivo(body: unknown): PayloadPasivo {
     // Regla del esquema: si hay indicador (no 'ninguno'), diferencial es obligatorio.
     if (indicador_referencia !== 'ninguno') {
       const diferencialRaw = requerido('diferencial');
-      if (typeof diferencialRaw !== 'number' || diferencialRaw < 0) {
+      if (typeof diferencialRaw !== 'number' || !Number.isFinite(diferencialRaw) || diferencialRaw < 0) {
         throw new ErrorApi(400, 'diferencial debe ser un número >= 0 cuando hay indicador_referencia');
       }
       diferencial = diferencialRaw;
@@ -175,12 +175,20 @@ export function validarCambiosPasivo(cambios: Record<string, unknown>): void {
     }
   }
   if (cambios.capital_inicial !== undefined) {
-    if (typeof cambios.capital_inicial !== 'number' || cambios.capital_inicial <= 0) {
+    if (
+      typeof cambios.capital_inicial !== 'number' ||
+      !Number.isFinite(cambios.capital_inicial) ||
+      cambios.capital_inicial <= 0
+    ) {
       throw new ErrorApi(400, 'capital_inicial debe ser un número mayor que 0');
     }
   }
   if (cambios.tipo_interes_anual !== undefined) {
-    if (typeof cambios.tipo_interes_anual !== 'number' || cambios.tipo_interes_anual < 0) {
+    if (
+      typeof cambios.tipo_interes_anual !== 'number' ||
+      !Number.isFinite(cambios.tipo_interes_anual) ||
+      cambios.tipo_interes_anual < 0
+    ) {
       throw new ErrorApi(400, 'tipo_interes_anual debe ser un número >= 0 (como fracción, ej. 0.031)');
     }
   }

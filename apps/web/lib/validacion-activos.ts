@@ -35,7 +35,7 @@ export function validarPayloadActivo(body: unknown): PayloadActivo {
   if (typeof b.nombre !== 'string' || b.nombre.trim().length === 0) {
     throw new ErrorApi(400, 'nombre no puede estar vacío');
   }
-  if (typeof b.valor_actual !== 'number' || b.valor_actual < 0) {
+  if (typeof b.valor_actual !== 'number' || !Number.isFinite(b.valor_actual) || b.valor_actual < 0) {
     throw new ErrorApi(400, 'valor_actual debe ser un número >= 0');
   }
 
@@ -59,7 +59,7 @@ export function validarPayloadActivo(body: unknown): PayloadActivo {
   }
 
   if (b.rentabilidad_estimada !== undefined && b.rentabilidad_estimada !== null) {
-    if (typeof b.rentabilidad_estimada !== 'number') {
+    if (typeof b.rentabilidad_estimada !== 'number' || !Number.isFinite(b.rentabilidad_estimada)) {
       throw new ErrorApi(400, 'rentabilidad_estimada debe ser un número si se indica');
     }
   }
@@ -98,7 +98,11 @@ export function validarCambiosActivo(cambios: Record<string, unknown>): void {
     }
   }
   if (cambios.valor_actual !== undefined) {
-    if (typeof cambios.valor_actual !== 'number' || cambios.valor_actual < 0) {
+    if (
+      typeof cambios.valor_actual !== 'number' ||
+      !Number.isFinite(cambios.valor_actual) ||
+      cambios.valor_actual < 0
+    ) {
       throw new ErrorApi(400, 'valor_actual debe ser un número >= 0');
     }
   }
@@ -117,7 +121,7 @@ export function validarCambiosActivo(cambios: Record<string, unknown>): void {
     }
   }
   if (cambios.rentabilidad_estimada !== undefined && cambios.rentabilidad_estimada !== null) {
-    if (typeof cambios.rentabilidad_estimada !== 'number') {
+    if (typeof cambios.rentabilidad_estimada !== 'number' || !Number.isFinite(cambios.rentabilidad_estimada)) {
       throw new ErrorApi(400, 'rentabilidad_estimada debe ser un número si se indica');
     }
   }

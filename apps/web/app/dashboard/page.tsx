@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../lib/supabase-browser';
 import { useEspacioActivo } from '../../lib/useEspacioActivo';
@@ -80,6 +80,14 @@ export default function PaginaDashboard() {
     window.localStorage.setItem(CLAVE_LOCALSTORAGE_DECIMALES, String(nuevo));
   }
 
+  // Guarda de qué espacio es la petición más reciente en vuelo — si al
+  // cambiar de espacio la respuesta del anterior llega tarde, no debe pisar
+  // la pantalla que ya muestra el espacio nuevo.
+  const espacioIdVigente = useRef<string | null>(null);
+  useEffect(() => {
+    espacioIdVigente.current = espacio?.id ?? null;
+  }, [espacio]);
+
   const cargarDatos = useCallback(async (accessToken: string, espacioId: string) => {
     const headers = { Authorization: `Bearer ${accessToken}` };
 
@@ -98,6 +106,8 @@ export default function PaginaDashboard() {
     const dataIngresos = await resIngresos.json();
     const dataActivos = await resActivos.json();
     const dataPasivos = await resPasivos.json();
+
+    if (espacioIdVigente.current !== espacioId) return;
 
     setProyeccion(dataProyeccion.data);
     setIngresos(dataIngresos.data ?? []);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
@@ -39,12 +39,21 @@ export default function PaginaNotificaciones() {
   const [error, setError] = useState<string | null>(null);
   const [resolviendo, setResolviendo] = useState<string | null>(null);
 
+  // Guarda de qué espacio es la petición más reciente en vuelo — si al
+  // cambiar de espacio la respuesta del anterior llega tarde, no debe pisar
+  // la pantalla que ya muestra el espacio nuevo.
+  const espacioIdVigente = useRef<string | null>(null);
+  useEffect(() => {
+    espacioIdVigente.current = espacio?.id ?? null;
+  }, [espacio]);
+
   const cargarNotificaciones = useCallback(async (accessToken: string, espacioId: string) => {
     const respuesta = await fetch(`/api/notificaciones?espacio_id=${espacioId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!respuesta.ok) throw new Error('No se han podido cargar las notificaciones.');
     const cuerpo = await respuesta.json();
+    if (espacioIdVigente.current !== espacioId) return;
     setNotificaciones(cuerpo.data ?? []);
   }, []);
 

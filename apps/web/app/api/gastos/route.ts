@@ -3,6 +3,7 @@ import { crearClienteSupabaseDeRequest, ErrorApi } from '../../../lib/supabase-s
 import {
   parsearFiltrosListado,
   validarPayloadMovimiento,
+  verificarCategoriaYCuenta,
 } from '../../../lib/validacion-movimientos';
 
 export async function GET(request: NextRequest) {
@@ -40,6 +41,8 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) throw new ErrorApi(401, 'No autenticado');
+
+    await verificarCategoriaYCuenta(supabase, payload.espacio_id, 'gasto', payload);
 
     const { data, error } = await supabase
       .from('gastos')

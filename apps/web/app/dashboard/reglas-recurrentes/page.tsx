@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
 import { useEspacioActivo } from '../../../lib/useEspacioActivo';
@@ -51,6 +51,14 @@ export default function PaginaReglasRecurrentes() {
   const [error, setError] = useState<string | null>(null);
   const [editando, setEditando] = useState<ReglaRecurrente | 'nueva' | null>(null);
 
+  // Guarda de qué espacio es la petición más reciente en vuelo — si al
+  // cambiar de espacio la respuesta del anterior llega tarde, no debe pisar
+  // la pantalla que ya muestra el espacio nuevo.
+  const espacioIdVigente = useRef<string | null>(null);
+  useEffect(() => {
+    espacioIdVigente.current = espacio?.id ?? null;
+  }, [espacio]);
+
   const cargarTodo = useCallback(async (accessToken: string, espacioId: string) => {
     const headers = { Authorization: `Bearer ${accessToken}` };
     const [resReglas, resCuentas, resCategorias] = await Promise.all([
@@ -61,9 +69,15 @@ export default function PaginaReglasRecurrentes() {
     if (!resReglas.ok || !resCuentas.ok || !resCategorias.ok) {
       throw new Error('No se han podido cargar las reglas recurrentes.');
     }
-    setReglas((await resReglas.json()).data ?? []);
-    setCuentas((await resCuentas.json()).data ?? []);
-    setCategorias((await resCategorias.json()).data ?? []);
+    const [datosReglas, datosCuentas, datosCategorias] = await Promise.all([
+      resReglas.json(),
+      resCuentas.json(),
+      resCategorias.json(),
+    ]);
+    if (espacioIdVigente.current !== espacioId) return;
+    setReglas(datosReglas.data ?? []);
+    setCuentas(datosCuentas.data ?? []);
+    setCategorias(datosCategorias.data ?? []);
   }, []);
 
   useEffect(() => {

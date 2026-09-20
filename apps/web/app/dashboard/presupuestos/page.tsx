@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
 import { useEspacioActivo } from '../../../lib/useEspacioActivo';
@@ -38,6 +38,14 @@ export default function PaginaPresupuestos() {
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Guarda de qué espacio es la petición más reciente en vuelo — si al
+  // cambiar de espacio la respuesta del anterior llega tarde, no debe pisar
+  // la pantalla que ya muestra el espacio nuevo.
+  const espacioIdVigente = useRef<string | null>(null);
+  useEffect(() => {
+    espacioIdVigente.current = espacio?.id ?? null;
+  }, [espacio]);
+
   const cargarTodo = useCallback(async (accessToken: string, espacioId: string) => {
     const headers = { Authorization: `Bearer ${accessToken}` };
     const [resCategorias, resGastos, resPresupuestos] = await Promise.all([
@@ -48,9 +56,15 @@ export default function PaginaPresupuestos() {
     if (!resCategorias.ok || !resGastos.ok || !resPresupuestos.ok) {
       throw new Error('No se han podido cargar los presupuestos.');
     }
-    setCategorias((await resCategorias.json()).data ?? []);
-    setGastos((await resGastos.json()).data ?? []);
-    setPresupuestos((await resPresupuestos.json()).data ?? []);
+    const [datosCategorias, datosGastos, datosPresupuestos] = await Promise.all([
+      resCategorias.json(),
+      resGastos.json(),
+      resPresupuestos.json(),
+    ]);
+    if (espacioIdVigente.current !== espacioId) return;
+    setCategorias(datosCategorias.data ?? []);
+    setGastos(datosGastos.data ?? []);
+    setPresupuestos(datosPresupuestos.data ?? []);
   }, []);
 
   useEffect(() => {
