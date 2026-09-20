@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { crearClienteSupabaseNavegador } from '../../lib/supabase-browser';
+import { completarRegistroSiHaceFalta } from '../../lib/completar-registro';
 
 export default function PaginaLogin() {
   const router = useRouter();
@@ -29,6 +31,11 @@ export default function PaginaLogin() {
       );
       return;
     }
+
+    // No-op para quien ya tiene perfil; para un alta cuyo primer login
+    // es este (proyecto con confirmación de email obligatoria), es aquí
+    // donde de verdad se crea su espacio por primera vez.
+    await completarRegistroSiHaceFalta(supabase);
 
     router.push('/dashboard');
   }
@@ -78,6 +85,10 @@ export default function PaginaLogin() {
             {cargando ? 'Accediendo…' : 'Acceder'}
           </button>
         </form>
+
+        <p className="texto-ayuda" style={{ marginTop: 16, textAlign: 'center' }}>
+          ¿No tienes cuenta? <Link href="/registro" className="enlace-discreto">Regístrate</Link>
+        </p>
       </div>
     </main>
   );
