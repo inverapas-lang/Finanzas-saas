@@ -3,14 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
+import { useEspacioActivo } from '../../../lib/useEspacioActivo';
 import { formatearMoneda, formatearFecha, formatearPorcentaje } from '../../../lib/formato';
 import { BarraLateral } from '../../../components/BarraLateral';
 import { Adjuntos } from '../../../components/Adjuntos';
-
-interface Espacio {
-  id: string;
-  nombre: string;
-}
 
 type TipoActivo = 'vivienda' | 'fondo' | 'accion' | 'etf' | 'deposito' | 'efectivo' | 'otro';
 
@@ -37,9 +33,7 @@ const ETIQUETAS_TIPO: Record<TipoActivo, string> = {
 
 export default function PaginaActivos() {
   const router = useRouter();
-  const [cargandoSesion, setCargandoSesion] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
-  const [espacio, setEspacio] = useState<Espacio | null>(null);
+  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
   const [activos, setActivos] = useState<Activo[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,41 +47,11 @@ export default function PaginaActivos() {
   }, []);
 
   useEffect(() => {
-    const supabase = crearClienteSupabaseNavegador();
-
-    async function inicializar() {
-      const { data: sesion } = await supabase.auth.getSession();
-      if (!sesion.session) {
-        router.push('/login');
-        return;
-      }
-      setToken(sesion.session.access_token);
-
-      const { data: espacios, error: errorEspacios } = await supabase
-        .from('espacios_financieros')
-        .select('id, nombre')
-        .limit(1);
-
-      if (errorEspacios || !espacios || espacios.length === 0) {
-        setError('No perteneces a ningún espacio financiero todavía.');
-        setCargandoSesion(false);
-        return;
-      }
-
-      const primerEspacio = espacios[0] as Espacio;
-      setEspacio(primerEspacio);
-
-      try {
-        await cargarActivos(sesion.session.access_token, primerEspacio.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al cargar los datos.');
-      } finally {
-        setCargandoSesion(false);
-      }
-    }
-
-    inicializar();
-  }, [router, cargarActivos]);
+    if (!token || !espacio) return;
+    cargarActivos(token, espacio.id).catch((e) =>
+      setError(e instanceof Error ? e.message : 'Error al cargar los datos.')
+    );
+  }, [token, espacio, cargarActivos]);
 
   async function cerrarSesion() {
     const supabase = crearClienteSupabaseNavegador();
@@ -107,7 +71,14 @@ export default function PaginaActivos() {
 
   return (
     <div className="app-layout">
-      <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
+      <BarraLateral
+        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
+        onCerrarSesion={cerrarSesion}
+        espacioId={espacio?.id}
+        token={token ?? undefined}
+        espacios={espacios}
+        onCambiarEspacio={cambiarEspacio}
+      />
       <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -126,10 +97,8 @@ export default function PaginaActivos() {
           )}
         </header>
 
-        {error && (
-          <p className="mensaje-error" style={{ marginBottom: 24 }}>
-            {error}
-          </p>
+        {(errorEspacio || error) && (
+          <p className="mensaje-error" style={{ marginBottom: 24 }}>{errorEspacio || error}</p>
         )}
 
         <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>

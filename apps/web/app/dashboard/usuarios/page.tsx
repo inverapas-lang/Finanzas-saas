@@ -3,13 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
+import { useEspacioActivo } from '../../../lib/useEspacioActivo';
 import { formatearFecha } from '../../../lib/formato';
 import { BarraLateral } from '../../../components/BarraLateral';
-
-interface Espacio {
-  id: string;
-  nombre: string;
-}
 
 type Rol = 'owner' | 'usuario' | 'asesor' | 'invitado';
 
@@ -30,10 +26,8 @@ const ETIQUETAS_ROL: Record<Rol, string> = {
 
 export default function PaginaUsuarios() {
   const router = useRouter();
-  const [cargandoSesion, setCargandoSesion] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
+  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
   const [miUsuarioId, setMiUsuarioId] = useState<string | null>(null);
-  const [espacio, setEspacio] = useState<Espacio | null>(null);
   const [miembros, setMiembros] = useState<Miembro[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,41 +42,17 @@ export default function PaginaUsuarios() {
 
   useEffect(() => {
     const supabase = crearClienteSupabaseNavegador();
+    supabase.auth.getSession().then(({ data: sesion }) => {
+      if (sesion.session) setMiUsuarioId(sesion.session.user.id);
+    });
+  }, []);
 
-    async function inicializar() {
-      const { data: sesion } = await supabase.auth.getSession();
-      if (!sesion.session) {
-        router.push('/login');
-        return;
-      }
-      setToken(sesion.session.access_token);
-      setMiUsuarioId(sesion.session.user.id);
-
-      const { data: espacios, error: errorEspacios } = await supabase
-        .from('espacios_financieros')
-        .select('id, nombre')
-        .limit(1);
-
-      if (errorEspacios || !espacios || espacios.length === 0) {
-        setError('No perteneces a ningún espacio financiero todavía.');
-        setCargandoSesion(false);
-        return;
-      }
-
-      const primerEspacio = espacios[0] as Espacio;
-      setEspacio(primerEspacio);
-
-      try {
-        await cargarMiembros(sesion.session.access_token, primerEspacio.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al cargar los datos.');
-      } finally {
-        setCargandoSesion(false);
-      }
-    }
-
-    inicializar();
-  }, [router, cargarMiembros]);
+  useEffect(() => {
+    if (!token || !espacio) return;
+    cargarMiembros(token, espacio.id).catch((e) =>
+      setError(e instanceof Error ? e.message : 'Error al cargar los datos.')
+    );
+  }, [token, espacio, cargarMiembros]);
 
   async function cerrarSesion() {
     const supabase = crearClienteSupabaseNavegador();
@@ -102,7 +72,14 @@ export default function PaginaUsuarios() {
 
   return (
     <div className="app-layout">
-      <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
+      <BarraLateral
+        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
+        onCerrarSesion={cerrarSesion}
+        espacioId={espacio?.id}
+        token={token ?? undefined}
+        espacios={espacios}
+        onCambiarEspacio={cambiarEspacio}
+      />
       <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Usuarios</h1>
@@ -111,10 +88,8 @@ export default function PaginaUsuarios() {
           </p>
         </header>
 
-        {error && (
-          <p className="mensaje-error" style={{ marginBottom: 24 }}>
-            {error}
-          </p>
+        {(errorEspacio || error) && (
+          <p className="mensaje-error" style={{ marginBottom: 24 }}>{errorEspacio || error}</p>
         )}
 
         <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32 }}>

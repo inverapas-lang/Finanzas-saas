@@ -3,14 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
+import { useEspacioActivo } from '../../../lib/useEspacioActivo';
 import { formatearFecha } from '../../../lib/formato';
 import { BarraLateral } from '../../../components/BarraLateral';
 import { Landmark, RefreshCw, Unlink, Search } from 'lucide-react';
-
-interface Espacio {
-  id: string;
-  nombre: string;
-}
 
 interface Institucion {
   id: string;
@@ -45,9 +41,7 @@ const COLOR_ESTADO: Record<ConexionBancaria['estado'], string> = {
 
 export default function PaginaBancos() {
   const router = useRouter();
-  const [cargandoSesion, setCargandoSesion] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
-  const [espacio, setEspacio] = useState<Espacio | null>(null);
+  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
   const [conexiones, setConexiones] = useState<ConexionBancaria[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mostrarSelector, setMostrarSelector] = useState(false);
@@ -61,41 +55,11 @@ export default function PaginaBancos() {
   }, []);
 
   useEffect(() => {
-    const supabase = crearClienteSupabaseNavegador();
-
-    async function inicializar() {
-      const { data: sesion } = await supabase.auth.getSession();
-      if (!sesion.session) {
-        router.push('/login');
-        return;
-      }
-      setToken(sesion.session.access_token);
-
-      const { data: espacios, error: errorEspacios } = await supabase
-        .from('espacios_financieros')
-        .select('id, nombre')
-        .limit(1);
-
-      if (errorEspacios || !espacios || espacios.length === 0) {
-        setError('No perteneces a ningún espacio financiero todavía.');
-        setCargandoSesion(false);
-        return;
-      }
-
-      const primerEspacio = espacios[0] as Espacio;
-      setEspacio(primerEspacio);
-
-      try {
-        await cargarConexiones(sesion.session.access_token, primerEspacio.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al cargar los datos.');
-      } finally {
-        setCargandoSesion(false);
-      }
-    }
-
-    inicializar();
-  }, [router, cargarConexiones]);
+    if (!token || !espacio) return;
+    cargarConexiones(token, espacio.id).catch((e) =>
+      setError(e instanceof Error ? e.message : 'Error al cargar los datos.')
+    );
+  }, [token, espacio, cargarConexiones]);
 
   async function cerrarSesion() {
     const supabase = crearClienteSupabaseNavegador();
@@ -124,7 +88,14 @@ export default function PaginaBancos() {
 
   return (
     <div className="app-layout">
-      <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
+      <BarraLateral
+        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
+        onCerrarSesion={cerrarSesion}
+        espacioId={espacio?.id}
+        token={token ?? undefined}
+        espacios={espacios}
+        onCambiarEspacio={cambiarEspacio}
+      />
       <main className="contenido" style={{ maxWidth: 840 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -141,7 +112,9 @@ export default function PaginaBancos() {
           )}
         </header>
 
-        {error && <p className="mensaje-error" style={{ marginBottom: 24 }}>{error}</p>}
+        {(errorEspacio || error) && (
+          <p className="mensaje-error" style={{ marginBottom: 24 }}>{errorEspacio || error}</p>
+        )}
 
         <div className="tarjeta" style={{ padding: 0 }}>
           {conexiones.length === 0 ? (

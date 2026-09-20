@@ -3,13 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
+import { useEspacioActivo } from '../../../lib/useEspacioActivo';
 import { BarraLateral } from '../../../components/BarraLateral';
 import { Sparkles, Send } from 'lucide-react';
-
-interface Espacio {
-  id: string;
-  nombre: string;
-}
 
 interface Mensaje {
   rol: 'usuario' | 'asistente';
@@ -25,43 +21,12 @@ const SUGERENCIAS = [
 
 export default function PaginaChat() {
   const router = useRouter();
-  const [cargandoSesion, setCargandoSesion] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
-  const [espacio, setEspacio] = useState<Espacio | null>(null);
+  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [entrada, setEntrada] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const finalRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const supabase = crearClienteSupabaseNavegador();
-
-    async function inicializar() {
-      const { data: sesion } = await supabase.auth.getSession();
-      if (!sesion.session) {
-        router.push('/login');
-        return;
-      }
-      setToken(sesion.session.access_token);
-
-      const { data: espacios, error: errorEspacios } = await supabase
-        .from('espacios_financieros')
-        .select('id, nombre')
-        .limit(1);
-
-      if (errorEspacios || !espacios || espacios.length === 0) {
-        setError('No perteneces a ningún espacio financiero todavía.');
-        setCargandoSesion(false);
-        return;
-      }
-
-      setEspacio(espacios[0] as Espacio);
-      setCargandoSesion(false);
-    }
-
-    inicializar();
-  }, [router]);
 
   useEffect(() => {
     finalRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -132,6 +97,8 @@ export default function PaginaChat() {
         onCerrarSesion={cerrarSesion}
         espacioId={espacio?.id}
         token={token ?? undefined}
+        espacios={espacios}
+        onCambiarEspacio={cambiarEspacio}
       />
       <main
         className="contenido"
@@ -165,7 +132,7 @@ export default function PaginaChat() {
 
         {espacio ? null : (
           <p className="mensaje-error" style={{ marginBottom: 16 }}>
-            {error}
+            {errorEspacio || error}
           </p>
         )}
 
