@@ -66,6 +66,20 @@ export function validarPayloadReglaRecurrente(body: unknown): PayloadReglaRecurr
     }
     fecha_fin = b.fecha_fin;
   }
+  if (
+    b.categoria_id !== undefined &&
+    b.categoria_id !== null &&
+    (typeof b.categoria_id !== 'string' || !UUID_REGEX.test(b.categoria_id))
+  ) {
+    throw new ErrorApi(400, 'categoria_id debe ser un UUID válido si se indica');
+  }
+  if (
+    b.cuenta_id !== undefined &&
+    b.cuenta_id !== null &&
+    (typeof b.cuenta_id !== 'string' || !UUID_REGEX.test(b.cuenta_id))
+  ) {
+    throw new ErrorApi(400, 'cuenta_id debe ser un UUID válido si se indica');
+  }
 
   return {
     espacio_id: b.espacio_id,
@@ -111,5 +125,19 @@ export function validarCambiosReglaRecurrente(cambios: Record<string, unknown>):
   }
   if (cambios.activa !== undefined && typeof cambios.activa !== 'boolean') {
     throw new ErrorApi(400, 'activa debe ser un booleano');
+  }
+  if (
+    cambios.categoria_id !== undefined &&
+    cambios.categoria_id !== null &&
+    (typeof cambios.categoria_id !== 'string' || !UUID_REGEX.test(cambios.categoria_id))
+  ) {
+    throw new ErrorApi(400, 'categoria_id debe ser un UUID válido si se indica');
+  }
+  if (
+    cambios.cuenta_id !== undefined &&
+    cambios.cuenta_id !== null &&
+    (typeof cambios.cuenta_id !== 'string' || !UUID_REGEX.test(cambios.cuenta_id))
+  ) {
+    throw new ErrorApi(400, 'cuenta_id debe ser un UUID válido si se indica');
   }
 }

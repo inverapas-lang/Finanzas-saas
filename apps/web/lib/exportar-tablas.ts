@@ -17,15 +17,34 @@ export interface HojaExportable {
 
 const ANCHO_COLUMNA_POR_DEFECTO = 16;
 
+/** Evita que sumas de floats de JS (1234.5600000000004) se cuelen tal cual en la celda. */
+function redondear(valor: string | number): string | number {
+  return typeof valor === 'number' ? Math.round(valor * 100) / 100 : valor;
+}
+
 export function generarXLSXTablas(hojas: HojaExportable[]): Buffer {
   const libro = XLSX.utils.book_new();
 
   for (const hoja of hojas) {
-    const datosHoja = [hoja.columnas, ...hoja.filas];
+    const filasRedondeadas = hoja.filas.map((fila) => fila.map(redondear));
+    const datosHoja = [hoja.columnas, ...filasRedondeadas];
     const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
     worksheet['!cols'] = hoja.columnas.map((c, i) => ({
       wch: Math.max(ANCHO_COLUMNA_POR_DEFECTO, c.length + 2, i === 0 ? 22 : 0),
     }));
+
+    // Formato numérico con 2 decimales en las celdas de datos que sean
+    // números — todas las tablas que exportamos hoy (informes/gráficos)
+    // son importes o totales, nunca IDs ni conteos.
+    for (let fila = 1; fila < datosHoja.length; fila++) {
+      for (let col = 0; col < hoja.columnas.length; col++) {
+        if (typeof filasRedondeadas[fila - 1][col] === 'number') {
+          const ref = XLSX.utils.encode_cell({ r: fila, c: col });
+          if (worksheet[ref]) worksheet[ref].z = '#,##0.00';
+        }
+      }
+    }
+
     // Los nombres de hoja de Excel no admiten " : \ / ? * [ ] " ni más de 31 caracteres.
     const nombreHoja = hoja.titulo.replace(/[:\\/?*[\]]/g, '').slice(0, 31) || 'Hoja';
     XLSX.utils.book_append_sheet(libro, worksheet, nombreHoja);

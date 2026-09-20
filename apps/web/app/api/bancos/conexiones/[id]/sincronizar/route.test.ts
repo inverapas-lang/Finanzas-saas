@@ -99,6 +99,37 @@ describe('POST /api/bancos/conexiones/[id]/sincronizar', () => {
     expect(cuerpo.data.totalCreados).toBe(0);
   });
 
+  it('si falla registrar la transacción externa, deshace el movimiento creado en vez de dejarlo huérfano', async () => {
+    supabaseMock = crearSupabaseMock({
+      'conexiones_bancarias:select': [{ data: { id: 'con-1', estado: 'vinculada' }, error: null }],
+      'cuentas_bancarias:select': [
+        {
+          data: [{ id: 'cuenta-1', cuenta_externa_id: 'ext-1', moneda: 'EUR', espacio_id: ESPACIO_ID }],
+          error: null,
+        },
+      ],
+      'transacciones_externas:select': [{ data: [], error: null }],
+      'ingresos:insert': [{ data: { id: 'ingreso-creado' }, error: null }],
+      'transacciones_externas:insert': [
+        { data: null, error: { message: 'duplicate key value violates unique constraint', code: '23505' } },
+      ],
+      'ingresos:delete': [{ data: null, error: null }],
+      'cuentas_bancarias:update': [{ data: null, error: null }],
+    });
+
+    obtenerTransaccionesMock.mockResolvedValue([
+      { transaccionExternaId: 'tx-in', importe: 1500, moneda: 'EUR', fecha: '2026-01-05', descripcion: 'Nómina' },
+    ]);
+
+    const res = await POST(crearRequest(), contexto());
+    const cuerpo = await res.json();
+
+    // No debe contarse como creado: si se contara, la próxima sincronización
+    // no volvería a intentarlo y el dinero de esa transacción se perdería.
+    expect(res.status).toBe(200);
+    expect(cuerpo.data.totalCreados).toBe(0);
+  });
+
   it('rechaza sincronizar una conexión que no está vinculada', async () => {
     supabaseMock = crearSupabaseMock({
       'conexiones_bancarias:select': [{ data: { id: 'con-1', estado: 'pendiente' }, error: null }],

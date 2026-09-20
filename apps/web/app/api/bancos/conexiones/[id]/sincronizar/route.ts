@@ -101,7 +101,22 @@ export async function POST(request: NextRequest, { params }: Contexto) {
           descripcion: mov.descripcion,
         });
         if (errorTraza) {
-          console.error('Error registrando transacción externa (posible duplicado en próxima sync):', errorTraza);
+          // Sin esto, el movimiento quedaría creado pero sin traza de que ya
+          // se importó — la próxima sincronización lo vería como "nuevo" (no
+          // está en transacciones_externas) y lo duplicaría. Como no hay
+          // transacción real entre las dos tablas desde aquí, se deshace a
+          // mano el insert anterior en vez de dejarlo huérfano.
+          const { error: errorRollback } = await supabase.from(tabla).delete().eq('id', movimientoCreado.id);
+          if (errorRollback) {
+            console.error(
+              `Error registrando transacción externa Y fallo al deshacer el ${tabla} creado (id ${movimientoCreado.id}) — requiere revisión manual:`,
+              errorTraza,
+              errorRollback
+            );
+          } else {
+            console.error('Error registrando transacción externa; se deshizo el movimiento creado para no duplicarlo:', errorTraza);
+          }
+          continue;
         }
 
         creadosEnCuenta++;

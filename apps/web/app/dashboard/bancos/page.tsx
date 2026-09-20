@@ -105,7 +105,12 @@ export default function PaginaBancos() {
 
   async function desvincular(id: string) {
     if (!token || !confirm('¿Desvincular este banco? Las cuentas ya importadas se quedan, pero dejarán de sincronizarse.')) return;
-    await fetch(`/api/bancos/conexiones/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    const respuesta = await fetch(`/api/bancos/conexiones/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.json();
+      setError(cuerpo.error ?? 'No se ha podido desvincular el banco.');
+      return;
+    }
     if (espacio) await cargarConexiones(token, espacio.id);
   }
 
@@ -184,7 +189,26 @@ function FilaConexion({
   onSincronizado: () => void;
 }) {
   const [sincronizando, setSincronizando] = useState(false);
+  const [comprobando, setComprobando] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
+
+  async function comprobarEstado() {
+    setComprobando(true);
+    setResultado(null);
+    try {
+      const respuesta = await fetch(`/api/bancos/conexiones/${conexion.id}/finalizar`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const cuerpo = await respuesta.json();
+      if (!respuesta.ok) throw new Error(cuerpo.error ?? 'Todavía no se ha completado la autorización en el banco.');
+      onSincronizado();
+    } catch (e) {
+      setResultado(e instanceof Error ? e.message : 'Error al comprobar el estado.');
+    } finally {
+      setComprobando(false);
+    }
+  }
 
   async function sincronizar() {
     setSincronizando(true);
@@ -236,6 +260,12 @@ function FilaConexion({
           {sincronizando ? 'Sincronizando…' : 'Sincronizar'}
         </button>
       )}
+      {conexion.estado === 'pendiente' && (
+        <button className="enlace-discreto" onClick={comprobarEstado} disabled={comprobando} title="Comprobar estado">
+          <RefreshCw size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+          {comprobando ? 'Comprobando…' : 'Comprobar estado'}
+        </button>
+      )}
       {conexion.estado !== 'revocada' && (
         <button
           className="enlace-discreto"
@@ -258,14 +288,24 @@ function SelectorBanco({ token, espacioId, onCerrar }: { token: string; espacioI
   const [conectando, setConectando] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelado = false;
     fetch('/api/bancos/instituciones?pais=ES', { headers: { Authorization: `Bearer ${token}` } })
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).error ?? 'No se han podido cargar los bancos disponibles.');
         return r.json();
       })
-      .then((cuerpo) => setInstituciones(cuerpo.data ?? []))
-      .catch((e) => setError(e instanceof Error ? e.message : 'Error al cargar los bancos.'))
-      .finally(() => setCargando(false));
+      .then((cuerpo) => {
+        if (!cancelado) setInstituciones(cuerpo.data ?? []);
+      })
+      .catch((e) => {
+        if (!cancelado) setError(e instanceof Error ? e.message : 'Error al cargar los bancos.');
+      })
+      .finally(() => {
+        if (!cancelado) setCargando(false);
+      });
+    return () => {
+      cancelado = true;
+    };
   }, [token]);
 
   async function conectar(institucion: Institucion) {

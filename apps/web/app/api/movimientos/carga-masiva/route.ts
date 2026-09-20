@@ -53,6 +53,39 @@ export async function POST(request: NextRequest) {
     const campoImporte = tipo === 'ingreso' ? 'importe_esperado' : 'importe_previsto';
     const campoFechaConfirmacion = tipo === 'ingreso' ? 'fecha_cobrada' : 'fecha_pagada';
 
+    const supabase = crearClienteSupabaseDeRequest(request);
+
+    // categoria_id/cuenta_id se comparten entre todas las filas del lote,
+    // así que se validan contra espacio_id una sola vez aquí (mismo criterio
+    // que el resto de rutas: existir no basta, tienen que ser del espacio).
+    if (b.categoria_id) {
+      const { data: categoria, error: errorCategoria } = await supabase
+        .from('categorias')
+        .select('id, tipo, espacio_id')
+        .eq('id', b.categoria_id)
+        .maybeSingle();
+      if (errorCategoria) throw new ErrorApi(500, errorCategoria.message);
+      if (!categoria) throw new ErrorApi(404, 'categoria_id no existe o no tienes acceso a ella');
+      if (categoria.espacio_id !== b.espacio_id) {
+        throw new ErrorApi(400, 'La categoría debe pertenecer al mismo espacio');
+      }
+      if (categoria.tipo !== tipo) {
+        throw new ErrorApi(400, 'La categoría debe ser del mismo tipo (ingreso/gasto) que el lote');
+      }
+    }
+    if (b.cuenta_id) {
+      const { data: cuenta, error: errorCuenta } = await supabase
+        .from('cuentas_bancarias')
+        .select('id, espacio_id')
+        .eq('id', b.cuenta_id)
+        .maybeSingle();
+      if (errorCuenta) throw new ErrorApi(500, errorCuenta.message);
+      if (!cuenta) throw new ErrorApi(404, 'cuenta_id no existe o no tienes acceso a ella');
+      if (cuenta.espacio_id !== b.espacio_id) {
+        throw new ErrorApi(400, 'La cuenta debe pertenecer al mismo espacio');
+      }
+    }
+
     const payloads = (b.filas as unknown[]).map((filaRaw, indice) => {
       if (typeof filaRaw !== 'object' || filaRaw === null) {
         throw new ErrorApi(400, `La fila ${indice + 1} debe ser un objeto`);
@@ -83,7 +116,6 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const supabase = crearClienteSupabaseDeRequest(request);
     const {
       data: { user },
     } = await supabase.auth.getUser();

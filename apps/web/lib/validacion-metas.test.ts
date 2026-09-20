@@ -39,6 +39,10 @@ describe('validarPayloadMeta', () => {
   it('rechaza fecha_objetivo con formato inválido', () => {
     expect(() => validarPayloadMeta({ ...BASE, fecha_objetivo: '01/01/2027' })).toThrow(ErrorApi);
   });
+
+  it('rechaza cuenta_id que no sea un UUID válido', () => {
+    expect(() => validarPayloadMeta({ ...BASE, cuenta_id: 'no-es-uuid' })).toThrow(ErrorApi);
+  });
 });
 
 describe('validarCambiosMeta', () => {
@@ -56,5 +60,9 @@ describe('validarCambiosMeta', () => {
 
   it('acepta un aporte (incremento de importe_actual)', () => {
     expect(() => validarCambiosMeta({ importe_actual: 1200 })).not.toThrow();
+  });
+
+  it('rechaza cuenta_id con formato inválido si se incluye', () => {
+    expect(() => validarCambiosMeta({ cuenta_id: 'x' })).toThrow(ErrorApi);
   });
 });

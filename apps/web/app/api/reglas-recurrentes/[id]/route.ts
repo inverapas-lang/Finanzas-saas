@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
 
     const supabase = crearClienteSupabaseDeRequest(request);
 
-    if (cambios.categoria_id) {
+    if (cambios.categoria_id || cambios.cuenta_id) {
       const { data: actual, error: errorActual } = await supabase
         .from('reglas_recurrentes')
         .select('espacio_id, tipo')
@@ -42,18 +42,33 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
       if (errorActual) throw new ErrorApi(500, errorActual.message);
       if (!actual) throw new ErrorApi(404, 'Regla recurrente no encontrada o sin acceso');
 
-      const { data: categoria, error: errorCategoria } = await supabase
-        .from('categorias')
-        .select('id, tipo, espacio_id')
-        .eq('id', cambios.categoria_id)
-        .maybeSingle();
-      if (errorCategoria) throw new ErrorApi(500, errorCategoria.message);
-      if (!categoria) throw new ErrorApi(404, 'categoria_id no existe o no tienes acceso a ella');
-      if (categoria.espacio_id !== actual.espacio_id) {
-        throw new ErrorApi(400, 'La categoría debe pertenecer al mismo espacio');
+      if (cambios.categoria_id) {
+        const { data: categoria, error: errorCategoria } = await supabase
+          .from('categorias')
+          .select('id, tipo, espacio_id')
+          .eq('id', cambios.categoria_id)
+          .maybeSingle();
+        if (errorCategoria) throw new ErrorApi(500, errorCategoria.message);
+        if (!categoria) throw new ErrorApi(404, 'categoria_id no existe o no tienes acceso a ella');
+        if (categoria.espacio_id !== actual.espacio_id) {
+          throw new ErrorApi(400, 'La categoría debe pertenecer al mismo espacio');
+        }
+        if (categoria.tipo !== actual.tipo) {
+          throw new ErrorApi(400, 'La categoría debe ser del mismo tipo (ingreso/gasto) que la regla');
+        }
       }
-      if (categoria.tipo !== actual.tipo) {
-        throw new ErrorApi(400, 'La categoría debe ser del mismo tipo (ingreso/gasto) que la regla');
+
+      if (cambios.cuenta_id) {
+        const { data: cuenta, error: errorCuenta } = await supabase
+          .from('cuentas_bancarias')
+          .select('id, espacio_id')
+          .eq('id', cambios.cuenta_id)
+          .maybeSingle();
+        if (errorCuenta) throw new ErrorApi(500, errorCuenta.message);
+        if (!cuenta) throw new ErrorApi(404, 'cuenta_id no existe o no tienes acceso a ella');
+        if (cuenta.espacio_id !== actual.espacio_id) {
+          throw new ErrorApi(400, 'La cuenta debe pertenecer al mismo espacio');
+        }
       }
     }
 

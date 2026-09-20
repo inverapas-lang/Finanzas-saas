@@ -4,6 +4,12 @@ import { NextRequest } from 'next/server';
 const insertMock = vi.fn();
 const authGetUserMock = vi.fn();
 
+// Respuestas configurables para las consultas de validación cruzada
+// (categoria_id/cuenta_id contra espacio_id) — null por defecto, cada test
+// que las necesite las rellena antes de llamar a POST.
+let respuestaCategoria: { data: unknown; error: unknown } = { data: null, error: null };
+let respuestaCuenta: { data: unknown; error: unknown } = { data: null, error: null };
+
 vi.mock('../../../../lib/supabase-server', async () => {
   const actual =
     await vi.importActual<typeof import('../../../../lib/supabase-server')>('../../../../lib/supabase-server');
@@ -11,18 +17,26 @@ vi.mock('../../../../lib/supabase-server', async () => {
     ...actual,
     crearClienteSupabaseDeRequest: () => ({
       auth: { getUser: authGetUserMock },
-      from: (tabla: string) => ({
-        insert: (rows: Record<string, unknown>[]) => {
-          insertMock(tabla, rows);
-          return {
-            select: () =>
-              Promise.resolve({
-                data: rows.map((fila, i) => ({ id: `id-${i}`, ...fila })),
-                error: null,
-              }),
-          };
-        },
-      }),
+      from: (tabla: string) => {
+        if (tabla === 'categorias') {
+          return { select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve(respuestaCategoria) }) }) };
+        }
+        if (tabla === 'cuentas_bancarias') {
+          return { select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve(respuestaCuenta) }) }) };
+        }
+        return {
+          insert: (rows: Record<string, unknown>[]) => {
+            insertMock(tabla, rows);
+            return {
+              select: () =>
+                Promise.resolve({
+                  data: rows.map((fila, i) => ({ id: `id-${i}`, ...fila })),
+                  error: null,
+                }),
+            };
+          },
+        };
+      },
     }),
   };
 });
@@ -43,6 +57,8 @@ beforeEach(() => {
   insertMock.mockClear();
   authGetUserMock.mockReset();
   authGetUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+  respuestaCategoria = { data: null, error: null };
+  respuestaCuenta = { data: null, error: null };
 });
 
 describe('POST /api/movimientos/carga-masiva', () => {
@@ -129,6 +145,67 @@ describe('POST /api/movimientos/carga-masiva', () => {
       expect(fila.importe_real).toBe(1500);
       expect(fila.fecha_pagada).toBe(fila.fecha_prevista);
     }
+  });
+
+  it('rechaza categoria_id de otro espacio', async () => {
+    respuestaCategoria = { data: { id: 'cat-1', tipo: 'gasto', espacio_id: 'otro-espacio' }, error: null };
+    const res = await POST(
+      crearRequest({
+        tipo: 'gasto',
+        espacio_id: ESPACIO_ID,
+        categoria_id: 'cat-1',
+        filas: [{ descripcion: 'x', fecha_prevista: '2026-01-01', importe: 10 }],
+      })
+    );
+    const cuerpo = await res.json();
+    expect(res.status).toBe(400);
+    expect(cuerpo.error).toMatch(/mismo espacio/);
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza categoria_id de tipo distinto al del lote', async () => {
+    respuestaCategoria = { data: { id: 'cat-1', tipo: 'ingreso', espacio_id: ESPACIO_ID }, error: null };
+    const res = await POST(
+      crearRequest({
+        tipo: 'gasto',
+        espacio_id: ESPACIO_ID,
+        categoria_id: 'cat-1',
+        filas: [{ descripcion: 'x', fecha_prevista: '2026-01-01', importe: 10 }],
+      })
+    );
+    expect(res.status).toBe(400);
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza cuenta_id de otro espacio', async () => {
+    respuestaCuenta = { data: { id: 'cuenta-1', espacio_id: 'otro-espacio' }, error: null };
+    const res = await POST(
+      crearRequest({
+        tipo: 'gasto',
+        espacio_id: ESPACIO_ID,
+        cuenta_id: 'cuenta-1',
+        filas: [{ descripcion: 'x', fecha_prevista: '2026-01-01', importe: 10 }],
+      })
+    );
+    const cuerpo = await res.json();
+    expect(res.status).toBe(400);
+    expect(cuerpo.error).toMatch(/mismo espacio/);
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('acepta categoria_id/cuenta_id que sí pertenecen al mismo espacio', async () => {
+    respuestaCategoria = { data: { id: 'cat-1', tipo: 'gasto', espacio_id: ESPACIO_ID }, error: null };
+    respuestaCuenta = { data: { id: 'cuenta-1', espacio_id: ESPACIO_ID }, error: null };
+    const res = await POST(
+      crearRequest({
+        tipo: 'gasto',
+        espacio_id: ESPACIO_ID,
+        categoria_id: 'cat-1',
+        cuenta_id: 'cuenta-1',
+        filas: [{ descripcion: 'x', fecha_prevista: '2026-01-01', importe: 10 }],
+      })
+    );
+    expect(res.status).toBe(201);
   });
 
   it('rechaza la petición si no hay usuario autenticado', async () => {

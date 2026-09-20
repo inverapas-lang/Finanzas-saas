@@ -31,6 +31,28 @@ export async function PATCH(request: NextRequest, { params }: Contexto) {
     validarCambiosMeta(cambios);
 
     const supabase = crearClienteSupabaseDeRequest(request);
+
+    if (cambios.cuenta_id) {
+      const { data: actual, error: errorActual } = await supabase
+        .from('metas_ahorro')
+        .select('espacio_id')
+        .eq('id', id)
+        .maybeSingle();
+      if (errorActual) throw new ErrorApi(500, errorActual.message);
+      if (!actual) throw new ErrorApi(404, 'Meta de ahorro no encontrada o sin acceso');
+
+      const { data: cuenta, error: errorCuenta } = await supabase
+        .from('cuentas_bancarias')
+        .select('id, espacio_id')
+        .eq('id', cambios.cuenta_id)
+        .maybeSingle();
+      if (errorCuenta) throw new ErrorApi(500, errorCuenta.message);
+      if (!cuenta) throw new ErrorApi(404, 'cuenta_id no existe o no tienes acceso a ella');
+      if (cuenta.espacio_id !== actual.espacio_id) {
+        throw new ErrorApi(400, 'La cuenta debe pertenecer al mismo espacio');
+      }
+    }
+
     const { data, error } = await supabase
       .from('metas_ahorro')
       .update(cambios)

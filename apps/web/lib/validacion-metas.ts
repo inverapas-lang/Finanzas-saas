@@ -47,6 +47,10 @@ export function validarPayloadMeta(body: unknown): PayloadMeta {
     fecha_objetivo = b.fecha_objetivo;
   }
 
+  if (b.cuenta_id !== undefined && b.cuenta_id !== null && (typeof b.cuenta_id !== 'string' || !UUID_REGEX.test(b.cuenta_id))) {
+    throw new ErrorApi(400, 'cuenta_id debe ser un UUID válido si se indica');
+  }
+
   return {
     espacio_id: b.espacio_id,
     nombre: b.nombre.trim(),
@@ -92,5 +96,12 @@ export function validarCambiosMeta(cambios: Record<string, unknown>): void {
   }
   if (cambios.activa !== undefined && typeof cambios.activa !== 'boolean') {
     throw new ErrorApi(400, 'activa debe ser un booleano');
+  }
+  if (
+    cambios.cuenta_id !== undefined &&
+    cambios.cuenta_id !== null &&
+    (typeof cambios.cuenta_id !== 'string' || !UUID_REGEX.test(cambios.cuenta_id))
+  ) {
+    throw new ErrorApi(400, 'cuenta_id debe ser un UUID válido si se indica');
   }
 }

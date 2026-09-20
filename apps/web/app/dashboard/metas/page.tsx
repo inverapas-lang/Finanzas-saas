@@ -92,7 +92,12 @@ export default function PaginaMetas() {
 
   async function eliminar(id: string) {
     if (!token || !confirm('¿Eliminar esta meta de ahorro?')) return;
-    await fetch(`/api/metas/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    const respuesta = await fetch(`/api/metas/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.json();
+      alert(cuerpo.error ?? 'No se ha podido eliminar la meta.');
+      return;
+    }
     if (espacio) await cargarTodo(token, espacio.id);
   }
 
@@ -172,6 +177,7 @@ function TarjetaMeta({
   const [aportando, setAportando] = useState(false);
   const [aporte, setAporte] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const progreso = Math.min(100, (meta.importe_actual / meta.importe_objetivo) * 100);
   const cumplida = meta.importe_actual >= meta.importe_objetivo;
@@ -183,15 +189,25 @@ function TarjetaMeta({
       return;
     }
     setGuardando(true);
-    await fetch(`/api/metas/${meta.id}`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ importe_actual: Math.max(0, meta.importe_actual + cantidad) }),
-    });
-    setGuardando(false);
-    setAportando(false);
-    setAporte('');
-    onCambio();
+    setError(null);
+    try {
+      const respuesta = await fetch(`/api/metas/${meta.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ importe_actual: Math.max(0, meta.importe_actual + cantidad) }),
+      });
+      if (!respuesta.ok) {
+        const cuerpo = await respuesta.json();
+        throw new Error(cuerpo.error ?? 'No se ha podido registrar el aporte.');
+      }
+      setAportando(false);
+      setAporte('');
+      onCambio();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al registrar el aporte.');
+    } finally {
+      setGuardando(false);
+    }
   }
 
   return (
@@ -249,6 +265,11 @@ function TarjetaMeta({
           </button>
         )}
       </div>
+      {error && (
+        <p className="mensaje-error" style={{ marginTop: 8, fontSize: 12 }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

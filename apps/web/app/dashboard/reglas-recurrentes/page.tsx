@@ -117,17 +117,27 @@ export default function PaginaReglasRecurrentes() {
 
   async function alternarActiva(regla: ReglaRecurrente) {
     if (!token) return;
-    await fetch(`/api/reglas-recurrentes/${regla.id}`, {
+    const respuesta = await fetch(`/api/reglas-recurrentes/${regla.id}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ activa: !regla.activa }),
     });
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.json();
+      setError(cuerpo.error ?? 'No se ha podido cambiar el estado de la regla.');
+      return;
+    }
     if (espacio) await cargarTodo(token, espacio.id);
   }
 
   async function eliminar(id: string) {
     if (!token || !confirm('¿Eliminar esta regla recurrente? Dejará de aparecer en la proyección.')) return;
-    await fetch(`/api/reglas-recurrentes/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    const respuesta = await fetch(`/api/reglas-recurrentes/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.json();
+      setError(cuerpo.error ?? 'No se ha podido eliminar la regla.');
+      return;
+    }
     if (espacio) await cargarTodo(token, espacio.id);
   }
 

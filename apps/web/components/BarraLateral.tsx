@@ -55,12 +55,20 @@ export function BarraLateral({ nombreEspacio, onCerrarSesion, espacioId, token }
 
   useEffect(() => {
     if (!espacioId || !token) return;
+    let cancelado = false;
     fetch(`/api/notificaciones?espacio_id=${espacioId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : { data: [] }))
-      .then((cuerpo) => setNumNotificaciones((cuerpo.data ?? []).length))
-      .catch(() => setNumNotificaciones(null));
+      .then((cuerpo) => {
+        if (!cancelado) setNumNotificaciones((cuerpo.data ?? []).length);
+      })
+      .catch(() => {
+        if (!cancelado) setNumNotificaciones(null);
+      });
+    return () => {
+      cancelado = true;
+    };
   }, [espacioId, token]);
 
   // Al navegar a otra pantalla (móvil), el cajón se cierra solo — si se

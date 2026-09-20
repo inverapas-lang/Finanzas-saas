@@ -52,6 +52,15 @@ describe('validarPayloadReglaRecurrente', () => {
     const payload = validarPayloadReglaRecurrente({ ...BASE, activa: false });
     expect(payload.activa).toBe(false);
   });
+
+  it('rechaza cuenta_id que no sea un UUID válido', () => {
+    expect(() => validarPayloadReglaRecurrente({ ...BASE, cuenta_id: 'no-es-uuid' })).toThrow(ErrorApi);
+  });
+
+  it('acepta cuenta_id null o ausente', () => {
+    expect(() => validarPayloadReglaRecurrente({ ...BASE, cuenta_id: null })).not.toThrow();
+    expect(() => validarPayloadReglaRecurrente(BASE)).not.toThrow();
+  });
 });
 
 describe('validarCambiosReglaRecurrente', () => {
@@ -74,5 +83,10 @@ describe('validarCambiosReglaRecurrente', () => {
 
   it('acepta cambios parciales válidos', () => {
     expect(() => validarCambiosReglaRecurrente({ importe: 850, activa: false })).not.toThrow();
+  });
+
+  it('rechaza cuenta_id/categoria_id con formato inválido si se incluyen', () => {
+    expect(() => validarCambiosReglaRecurrente({ cuenta_id: 'x' })).toThrow(ErrorApi);
+    expect(() => validarCambiosReglaRecurrente({ categoria_id: 'x' })).toThrow(ErrorApi);
   });
 });
