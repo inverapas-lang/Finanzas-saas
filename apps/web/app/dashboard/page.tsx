@@ -3,13 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../lib/supabase-browser';
+import { useEspacioActivo } from '../../lib/useEspacioActivo';
 import { formatearMoneda, formatearFecha, tituloImporteExacto, type DecimalesMoneda } from '../../lib/formato';
 import { BarraLateral } from '../../components/BarraLateral';
-
-interface Espacio {
-  id: string;
-  nombre: string;
-}
 
 interface Proyeccion {
   realConfirmadoIngresos: number;
@@ -56,9 +52,7 @@ function SelectorDecimales({
 
 export default function PaginaDashboard() {
   const router = useRouter();
-  const [cargandoSesion, setCargandoSesion] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
-  const [espacio, setEspacio] = useState<Espacio | null>(null);
+  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
   const [proyeccion, setProyeccion] = useState<Proyeccion | null>(null);
   const [ingresos, setIngresos] = useState<Ingreso[]>([]);
   const [patrimonio, setPatrimonio] = useState<{ totalActivos: number; totalPasivos: number } | null>(null);
@@ -120,44 +114,11 @@ export default function PaginaDashboard() {
   }, []);
 
   useEffect(() => {
-    const supabase = crearClienteSupabaseNavegador();
-
-    async function inicializar() {
-      const { data: sesion } = await supabase.auth.getSession();
-      if (!sesion.session) {
-        router.push('/login');
-        return;
-      }
-      setToken(sesion.session.access_token);
-
-      // Tomamos el primer espacio del que el usuario es miembro. Cuando haya
-      // más de un espacio (varios clientes gestionados por un asesor, por
-      // ejemplo), aquí irá un selector — de momento cogemos el primero.
-      const { data: espacios, error: errorEspacios } = await supabase
-        .from('espacios_financieros')
-        .select('id, nombre')
-        .limit(1);
-
-      if (errorEspacios || !espacios || espacios.length === 0) {
-        setError('No perteneces a ningún espacio financiero todavía.');
-        setCargandoSesion(false);
-        return;
-      }
-
-      const primerEspacio = espacios[0] as Espacio;
-      setEspacio(primerEspacio);
-
-      try {
-        await cargarDatos(sesion.session.access_token, primerEspacio.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al cargar los datos.');
-      } finally {
-        setCargandoSesion(false);
-      }
-    }
-
-    inicializar();
-  }, [router, cargarDatos]);
+    if (!token || !espacio) return;
+    cargarDatos(token, espacio.id).catch((e) =>
+      setError(e instanceof Error ? e.message : 'Error al cargar los datos.')
+    );
+  }, [token, espacio, cargarDatos]);
 
   async function cerrarSesion() {
     const supabase = crearClienteSupabaseNavegador();
@@ -212,7 +173,14 @@ export default function PaginaDashboard() {
 
   return (
     <div className="app-layout">
-      <BarraLateral nombreEspacio={espacio?.nombre ?? 'Finanzas'} onCerrarSesion={cerrarSesion} espacioId={espacio?.id} token={token ?? undefined} />
+      <BarraLateral
+        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
+        onCerrarSesion={cerrarSesion}
+        espacioId={espacio?.id}
+        token={token ?? undefined}
+        espacios={espacios}
+        onCambiarEspacio={cambiarEspacio}
+      />
       <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -224,7 +192,9 @@ export default function PaginaDashboard() {
           <SelectorDecimales valor={decimales} onCambiar={cambiarDecimales} />
         </header>
 
-        {error && <p className="mensaje-error" style={{ marginBottom: 24 }}>{error}</p>}
+        {(errorEspacio || error) && (
+          <p className="mensaje-error" style={{ marginBottom: 24 }}>{errorEspacio || error}</p>
+        )}
 
       {proyeccion && (
         <section

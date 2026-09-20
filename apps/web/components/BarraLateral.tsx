@@ -23,12 +23,20 @@ import {
   X,
 } from 'lucide-react';
 
+interface EspacioSimple {
+  id: string;
+  nombre: string;
+}
+
 interface Props {
   nombreEspacio: string;
   onCerrarSesion: () => void;
   /** Opcionales: si se pasan, la campana de notificaciones muestra el contador real. */
   espacioId?: string;
   token?: string;
+  /** Opcionales: si hay más de un espacio, se muestra el selector para cambiar entre ellos. */
+  espacios?: EspacioSimple[];
+  onCambiarEspacio?: (id: string) => void;
 }
 
 const ITEMS = [
@@ -47,7 +55,7 @@ const ITEMS = [
   { href: '/dashboard/usuarios', etiqueta: 'Usuarios', Icono: Users },
 ];
 
-export function BarraLateral({ nombreEspacio, onCerrarSesion, espacioId, token }: Props) {
+export function BarraLateral({ nombreEspacio, onCerrarSesion, espacioId, token, espacios, onCambiarEspacio }: Props) {
   const pathname = usePathname();
   const inicial = nombreEspacio.trim().charAt(0).toUpperCase() || '?';
   const [numNotificaciones, setNumNotificaciones] = useState<number | null>(null);
@@ -92,7 +100,23 @@ export function BarraLateral({ nombreEspacio, onCerrarSesion, espacioId, token }
       <nav className={`sidebar ${abierta ? 'sidebar-abierta' : ''}`}>
         <div className="sidebar-cabecera">
           <div className="sidebar-avatar">{inicial}</div>
-          <span className="sidebar-titulo">{nombreEspacio}</span>
+          {espacios && espacios.length > 1 && onCambiarEspacio ? (
+            <select
+              value={espacioId ?? ''}
+              onChange={(e) => onCambiarEspacio(e.target.value)}
+              className="sidebar-titulo"
+              style={{ border: 'none', background: 'none', cursor: 'pointer', flex: 1, minWidth: 0, padding: 0 }}
+              aria-label="Cambiar de espacio"
+            >
+              {espacios.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="sidebar-titulo">{nombreEspacio}</span>
+          )}
           <button className="boton-cerrar-sidebar" onClick={() => setAbierta(false)} aria-label="Cerrar menú">
             <X size={18} strokeWidth={1.75} />
           </button>

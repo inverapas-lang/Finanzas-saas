@@ -4,14 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
+import { useEspacioActivo } from '../../../lib/useEspacioActivo';
 import { formatearFecha, formatearMoneda } from '../../../lib/formato';
 import { BarraLateral } from '../../../components/BarraLateral';
 import { AlertTriangle, Clock, Info } from 'lucide-react';
-
-interface Espacio {
-  id: string;
-  nombre: string;
-}
 
 interface Notificacion {
   id: string;
@@ -38,9 +34,7 @@ const COLOR_POR_SEVERIDAD = {
 
 export default function PaginaNotificaciones() {
   const router = useRouter();
-  const [cargandoSesion, setCargandoSesion] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
-  const [espacio, setEspacio] = useState<Espacio | null>(null);
+  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [resolviendo, setResolviendo] = useState<string | null>(null);
@@ -55,41 +49,11 @@ export default function PaginaNotificaciones() {
   }, []);
 
   useEffect(() => {
-    const supabase = crearClienteSupabaseNavegador();
-
-    async function inicializar() {
-      const { data: sesion } = await supabase.auth.getSession();
-      if (!sesion.session) {
-        router.push('/login');
-        return;
-      }
-      setToken(sesion.session.access_token);
-
-      const { data: espacios, error: errorEspacios } = await supabase
-        .from('espacios_financieros')
-        .select('id, nombre')
-        .limit(1);
-
-      if (errorEspacios || !espacios || espacios.length === 0) {
-        setError('No perteneces a ningún espacio financiero todavía.');
-        setCargandoSesion(false);
-        return;
-      }
-
-      const primerEspacio = espacios[0] as Espacio;
-      setEspacio(primerEspacio);
-
-      try {
-        await cargarNotificaciones(sesion.session.access_token, primerEspacio.id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al cargar los datos.');
-      } finally {
-        setCargandoSesion(false);
-      }
-    }
-
-    inicializar();
-  }, [router, cargarNotificaciones]);
+    if (!token || !espacio) return;
+    cargarNotificaciones(token, espacio.id).catch((e) =>
+      setError(e instanceof Error ? e.message : 'Error al cargar los datos.')
+    );
+  }, [token, espacio, cargarNotificaciones]);
 
   async function confirmar(n: Notificacion, importeReal: number) {
     if (!token) return;
@@ -135,6 +99,8 @@ export default function PaginaNotificaciones() {
         onCerrarSesion={cerrarSesion}
         espacioId={espacio?.id}
         token={token ?? undefined}
+        espacios={espacios}
+        onCambiarEspacio={cambiarEspacio}
       />
       <main className="contenido" style={{ maxWidth: 720 }}>
         <header style={{ marginBottom: 24 }}>
@@ -144,9 +110,9 @@ export default function PaginaNotificaciones() {
           </p>
         </header>
 
-        {error && (
+        {(errorEspacio || error) && (
           <p className="mensaje-error" style={{ marginBottom: 24 }}>
-            {error}
+            {errorEspacio || error}
           </p>
         )}
 
