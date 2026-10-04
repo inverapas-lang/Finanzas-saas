@@ -31,13 +31,31 @@ const RAIZ = path.resolve(__dirname, '..');
 
 function leerEnvLocal() {
   const ruta = path.join(RAIZ, 'apps/web/.env.local');
-  if (!existsSync(ruta)) return {};
-  const contenido = readFileSync(ruta, 'utf-8');
-  const vars = {};
-  for (const linea of contenido.split('\n')) {
-    const m = linea.match(/^([A-Z_]+)=(.*)$/);
-    if (m) vars[m[1]] = m[2].trim();
+  if (!existsSync(ruta)) {
+    console.log(`(aviso: no se encuentra ${ruta})`);
+    return {};
   }
+  // .replace del BOM: algunos editores de Windows guardan el archivo con
+  // marca de orden de bytes UTF-8 al principio, que si no se quita rompe
+  // el match de la primera línea del archivo.
+  const contenido = readFileSync(ruta, 'utf-8').replace(/^﻿/, '');
+  const vars = {};
+  for (const lineaCruda of contenido.split(/\r?\n/)) {
+    const linea = lineaCruda.trim();
+    const m = linea.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+    if (m) {
+      let valor = m[2].trim();
+      // quita comillas si el valor viene entre comillas simples o dobles
+      if (
+        (valor.startsWith('"') && valor.endsWith('"')) ||
+        (valor.startsWith("'") && valor.endsWith("'"))
+      ) {
+        valor = valor.slice(1, -1);
+      }
+      vars[m[1]] = valor;
+    }
+  }
+  console.log(`(leídas ${Object.keys(vars).length} variables de ${ruta})`);
   return vars;
 }
 
