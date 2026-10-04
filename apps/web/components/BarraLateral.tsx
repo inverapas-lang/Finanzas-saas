@@ -21,6 +21,7 @@ import {
   FileBarChart,
   Menu,
   X,
+  TrendingUp,
 } from 'lucide-react';
 
 interface EspacioSimple {
@@ -49,6 +50,7 @@ const ITEMS = [
   { href: '/dashboard/metas', etiqueta: 'Metas de ahorro', Icono: Target },
   { href: '/dashboard/pasivos', etiqueta: 'Préstamos e hipotecas', Icono: Landmark },
   { href: '/dashboard/activos', etiqueta: 'Activos', Icono: Wallet },
+  { href: '/dashboard/patrimonio', etiqueta: 'Patrimonio histórico', Icono: TrendingUp },
   { href: '/dashboard/bancos', etiqueta: 'Bancos', Icono: Building2 },
   { href: '/dashboard/informes', etiqueta: 'Informes', Icono: FileBarChart },
   { href: '/dashboard/graficos', etiqueta: 'Gráficos', Icono: BarChart3 },
