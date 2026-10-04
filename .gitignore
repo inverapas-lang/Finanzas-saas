@@ -27,3 +27,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# datos personales extraídos de un Excel para una importación puntual —
+# nunca a git (nombres de familiares, sueldos, deudas reales)
+scripts/datos-importacion/*.json
