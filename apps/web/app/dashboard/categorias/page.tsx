@@ -1,10 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
-import { BarraLateral } from '../../../components/BarraLateral';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { Tags, Trash2 } from 'lucide-react';
 
 interface Categoria {
@@ -15,8 +12,7 @@ interface Categoria {
 }
 
 export default function PaginaCategorias() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [pestana, setPestana] = useState<'ingreso' | 'gasto'>('gasto');
   const [error, setError] = useState<string | null>(null);
@@ -46,12 +42,6 @@ export default function PaginaCategorias() {
     );
   }, [token, espacio, cargarCategorias]);
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
   async function eliminar(id: string) {
     if (!token || !confirm('¿Eliminar esta categoría? Los movimientos que la usan se quedan sin categoría.')) return;
     const respuesta = await fetch(`/api/categorias/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
@@ -63,28 +53,11 @@ export default function PaginaCategorias() {
     if (espacio) await cargarCategorias(token, espacio.id);
   }
 
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   const categoriasDelTipo = categorias.filter((c) => c.tipo === pestana);
   const raiz = categoriasDelTipo.filter((c) => !c.categoria_padre_id);
   const hijasDe = (id: string) => categoriasDelTipo.filter((c) => c.categoria_padre_id === id);
 
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 900 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Categorías</h1>
@@ -147,7 +120,6 @@ export default function PaginaCategorias() {
           )}
         </section>
       </main>
-    </div>
   );
 }
 

@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearMoneda, formatearFecha } from '../../../lib/formato';
-import { BarraLateral } from '../../../components/BarraLateral';
 import { Repeat, Pencil, Trash2 } from 'lucide-react';
 
 interface Cuenta {
@@ -43,8 +40,7 @@ const ETIQUETA_PERIODICIDAD: Record<string, string> = {
 };
 
 export default function PaginaReglasRecurrentes() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [reglas, setReglas] = useState<ReglaRecurrente[]>([]);
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -87,12 +83,6 @@ export default function PaginaReglasRecurrentes() {
     );
   }, [token, espacio, cargarTodo]);
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
   async function alternarActiva(regla: ReglaRecurrente) {
     if (!token) return;
     const respuesta = await fetch(`/api/reglas-recurrentes/${regla.id}`, {
@@ -119,29 +109,12 @@ export default function PaginaReglasRecurrentes() {
     if (espacio) await cargarTodo(token, espacio.id);
   }
 
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   function nombreCategoria(id: string | null): string {
     if (!id) return 'Sin categoría';
     return categorias.find((c) => c.id === id)?.nombre ?? 'Sin categoría';
   }
 
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 840 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -227,7 +200,6 @@ export default function PaginaReglasRecurrentes() {
           />
         )}
       </main>
-    </div>
   );
 }
 

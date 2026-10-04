@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearFecha } from '../../../lib/formato';
-import { BarraLateral } from '../../../components/BarraLateral';
 import { Landmark, RefreshCw, Unlink, Search } from 'lucide-react';
 
 interface Institucion {
@@ -40,8 +37,7 @@ const COLOR_ESTADO: Record<ConexionBancaria['estado'], string> = {
 };
 
 export default function PaginaBancos() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [conexiones, setConexiones] = useState<ConexionBancaria[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mostrarSelector, setMostrarSelector] = useState(false);
@@ -71,12 +67,6 @@ export default function PaginaBancos() {
     );
   }, [token, espacio, cargarConexiones]);
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
   async function desvincular(id: string) {
     if (!token || !confirm('¿Desvincular este banco? Las cuentas ya importadas se quedan, pero dejarán de sincronizarse.')) return;
     const respuesta = await fetch(`/api/bancos/conexiones/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
@@ -88,24 +78,7 @@ export default function PaginaBancos() {
     if (espacio) await cargarConexiones(token, espacio.id);
   }
 
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 840 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -154,7 +127,6 @@ export default function PaginaBancos() {
           />
         )}
       </main>
-    </div>
   );
 }
 

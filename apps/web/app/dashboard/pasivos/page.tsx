@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearMoneda, formatearPorcentaje, formatearFecha } from '../../../lib/formato';
-import { BarraLateral } from '../../../components/BarraLateral';
 import { Adjuntos } from '../../../components/Adjuntos';
 
 type TipoPasivo = 'hipoteca' | 'prestamo_personal' | 'prestamo_vehiculo' | 'deuda_tarjeta' | 'otro';
@@ -46,8 +43,7 @@ const ETIQUETAS_INDICADOR: Record<Indicador, string> = {
 };
 
 export default function PaginaPasivos() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [pasivos, setPasivos] = useState<Pasivo[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,30 +72,7 @@ export default function PaginaPasivos() {
     );
   }, [token, espacio, cargarPasivos]);
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 32 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Préstamos e hipotecas</h1>
@@ -144,7 +117,6 @@ export default function PaginaPasivos() {
           )}
         </section>
       </main>
-    </div>
   );
 }
 

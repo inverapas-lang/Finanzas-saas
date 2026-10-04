@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearMoneda } from '../../../lib/formato';
-import { BarraLateral } from '../../../components/BarraLateral';
 import { GraficoSVG, type SerieGrafico } from '../../../components/GraficoSVG';
 import { BotonesExportarTablas } from '../../../components/BotonesExportarTablas';
 import type { HojaExportable } from '../../../lib/exportar-tablas';
@@ -149,8 +146,7 @@ async function cargarYAgregar(
 }
 
 export default function PaginaGraficos() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [vistasGuardadas, setVistasGuardadas] = useState<VistaGuardada[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -200,12 +196,6 @@ export default function PaginaGraficos() {
       setError(e instanceof Error ? e.message : 'Error al cargar los datos.')
     );
   }, [token, espacio, cargarTodo]);
-
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
 
   const generar = useCallback(async () => {
     if (!token || !espacio) return;
@@ -269,26 +259,9 @@ export default function PaginaGraficos() {
     ];
   }
 
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   const esPorCategoria = metrica !== 'ingresos_vs_gastos';
 
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 900 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Gráficos</h1>
@@ -425,7 +398,6 @@ export default function PaginaGraficos() {
           </div>
         )}
       </main>
-    </div>
   );
 }
 

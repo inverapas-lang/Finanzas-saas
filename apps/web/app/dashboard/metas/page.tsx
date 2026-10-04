@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearMoneda, formatearFecha } from '../../../lib/formato';
-import { BarraLateral } from '../../../components/BarraLateral';
 import { Target, Trash2 } from 'lucide-react';
 
 interface Cuenta {
@@ -24,8 +21,7 @@ interface Meta {
 }
 
 export default function PaginaMetas() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [metas, setMetas] = useState<Meta[]>([]);
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -58,12 +54,6 @@ export default function PaginaMetas() {
     );
   }, [token, espacio, cargarTodo]);
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
   async function eliminar(id: string) {
     if (!token || !confirm('¿Eliminar esta meta de ahorro?')) return;
     const respuesta = await fetch(`/api/metas/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
@@ -75,24 +65,7 @@ export default function PaginaMetas() {
     if (espacio) await cargarTodo(token, espacio.id);
   }
 
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 960 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Metas de ahorro</h1>
@@ -142,7 +115,6 @@ export default function PaginaMetas() {
           )}
         </section>
       </main>
-    </div>
   );
 }
 

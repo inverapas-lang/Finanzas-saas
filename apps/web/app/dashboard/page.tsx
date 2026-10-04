@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../lib/supabase-browser';
-import { useEspacioActivo } from '../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../lib/contexto-espacio-activo';
 import { formatearMoneda, formatearFecha, tituloImporteExacto, type DecimalesMoneda } from '../../lib/formato';
-import { BarraLateral } from '../../components/BarraLateral';
 
 interface Proyeccion {
   realConfirmadoIngresos: number;
@@ -51,8 +48,7 @@ function SelectorDecimales({
 }
 
 export default function PaginaDashboard() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [proyeccion, setProyeccion] = useState<Proyeccion | null>(null);
   const [ingresos, setIngresos] = useState<Ingreso[]>([]);
   const [patrimonio, setPatrimonio] = useState<{ totalActivos: number; totalPasivos: number } | null>(null);
@@ -130,12 +126,6 @@ export default function PaginaDashboard() {
     );
   }, [token, espacio, cargarDatos]);
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
   async function crearIngreso(evento: React.FormEvent) {
     evento.preventDefault();
     if (!token || !espacio) return;
@@ -173,24 +163,7 @@ export default function PaginaDashboard() {
     }
   }
 
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -363,7 +336,6 @@ export default function PaginaDashboard() {
         </div>
       </section>
       </main>
-    </div>
   );
 }
 

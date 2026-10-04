@@ -1,12 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearFecha, formatearMoneda } from '../../../lib/formato';
-import { BarraLateral } from '../../../components/BarraLateral';
 import { AlertTriangle, Clock, Info } from 'lucide-react';
 
 interface Notificacion {
@@ -33,8 +30,7 @@ const COLOR_POR_SEVERIDAD = {
 };
 
 export default function PaginaNotificaciones() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [resolviendo, setResolviendo] = useState<string | null>(null);
@@ -87,30 +83,7 @@ export default function PaginaNotificaciones() {
     }
   }
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 720 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Notificaciones</h1>
@@ -154,7 +127,6 @@ export default function PaginaNotificaciones() {
           </div>
         )}
       </main>
-    </div>
   );
 }
 

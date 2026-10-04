@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearMoneda, formatearMes } from '../../../lib/formato';
-import { BarraLateral } from '../../../components/BarraLateral';
 import { GraficoSVG, type SerieGrafico } from '../../../components/GraficoSVG';
 import { BotonesExportarTablas } from '../../../components/BotonesExportarTablas';
 import type { HojaExportable } from '../../../lib/exportar-tablas';
@@ -25,8 +22,7 @@ interface Categoria {
 }
 
 export default function PaginaInformes() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [ingresos, setIngresos] = useState<MovimientoParaInforme[]>([]);
   const [gastos, setGastos] = useState<MovimientoParaInforme[]>([]);
@@ -72,12 +68,6 @@ export default function PaginaInformes() {
     );
   }, [token, espacio, cargarDatos]);
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
   async function aplicarFiltro() {
     if (!token || !espacio) return;
     setError(null);
@@ -93,14 +83,6 @@ export default function PaginaInformes() {
     setHasta('');
     if (!token || !espacio) return;
     await cargarDatos(token, espacio.id, '', '');
-  }
-
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
   }
 
   const meses = rangoMesesDesdeMovimientos([...ingresos, ...gastos]);
@@ -154,15 +136,6 @@ export default function PaginaInformes() {
   }
 
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 960 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -222,7 +195,6 @@ export default function PaginaInformes() {
 
         {meses.length > 0 && <DetalleMensualCompleto filas={filasMensuales} />}
       </main>
-    </div>
   );
 }
 

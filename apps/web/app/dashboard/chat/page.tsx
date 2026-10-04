@@ -1,10 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
-import { BarraLateral } from '../../../components/BarraLateral';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { Sparkles, Send } from 'lucide-react';
 
 interface Mensaje {
@@ -20,8 +17,7 @@ const SUGERENCIAS = [
 ];
 
 export default function PaginaChat() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [entrada, setEntrada] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -31,12 +27,6 @@ export default function PaginaChat() {
   useEffect(() => {
     finalRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensajes, enviando]);
-
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
 
   async function enviarMensaje(texto: string) {
     const contenido = texto.trim();
@@ -82,24 +72,7 @@ export default function PaginaChat() {
     enviarMensaje(entrada);
   }
 
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main
         className="contenido"
         style={{
@@ -221,7 +194,6 @@ export default function PaginaChat() {
           </>
         )}
       </main>
-    </div>
   );
 }
 

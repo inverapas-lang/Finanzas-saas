@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearMoneda, formatearFecha } from '../../../lib/formato';
-import { BarraLateral } from '../../../components/BarraLateral';
 import { Download, Upload, CalendarRange } from 'lucide-react';
 
 interface Cuenta {
@@ -42,8 +39,7 @@ interface Gasto {
 }
 
 export default function PaginaMovimientos() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [pestana, setPestana] = useState<'ingresos' | 'gastos'>('ingresos');
 
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
@@ -92,32 +88,9 @@ export default function PaginaMovimientos() {
     );
   }, [token, espacio, cargarTodo]);
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   const categoriasDelTipo = categorias.filter((c) => c.tipo === (pestana === 'ingresos' ? 'ingreso' : 'gasto'));
 
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 960 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -202,7 +175,6 @@ export default function PaginaMovimientos() {
           )}
         </section>
       </main>
-    </div>
   );
 }
 

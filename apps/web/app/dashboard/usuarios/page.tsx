@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { crearClienteSupabaseNavegador } from '../../../lib/supabase-browser';
-import { useEspacioActivo } from '../../../lib/useEspacioActivo';
+import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearFecha } from '../../../lib/formato';
-import { BarraLateral } from '../../../components/BarraLateral';
 
 type Rol = 'owner' | 'usuario' | 'asesor' | 'invitado';
 
@@ -25,8 +23,7 @@ const ETIQUETAS_ROL: Record<Rol, string> = {
 };
 
 export default function PaginaUsuarios() {
-  const router = useRouter();
-  const { cargando: cargandoSesion, token, espacio, espacios, cambiarEspacio, error: errorEspacio } = useEspacioActivo();
+  const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [miUsuarioId, setMiUsuarioId] = useState<string | null>(null);
   const [miembros, setMiembros] = useState<Miembro[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -63,32 +60,9 @@ export default function PaginaUsuarios() {
     );
   }, [token, espacio, cargarMiembros]);
 
-  async function cerrarSesion() {
-    const supabase = crearClienteSupabaseNavegador();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
   const soyOwner = miembros.some((m) => m.usuario_id === miUsuarioId && m.rol === 'owner');
 
-  if (cargandoSesion) {
-    return (
-      <main className="pantalla-centrada">
-        <p style={{ color: 'var(--color-text-muted)' }}>Cargando…</p>
-      </main>
-    );
-  }
-
   return (
-    <div className="app-layout">
-      <BarraLateral
-        nombreEspacio={espacio?.nombre ?? 'Finanzas'}
-        onCerrarSesion={cerrarSesion}
-        espacioId={espacio?.id}
-        token={token ?? undefined}
-        espacios={espacios}
-        onCambiarEspacio={cambiarEspacio}
-      />
       <main className="contenido" style={{ maxWidth: 880 }}>
         <header style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Usuarios</h1>
@@ -138,7 +112,6 @@ export default function PaginaUsuarios() {
           )}
         </section>
       </main>
-    </div>
   );
 }
 
