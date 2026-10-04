@@ -72,7 +72,8 @@ async function main() {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) {
     console.error('Faltan NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY (ni en el entorno ni en apps/web/.env.local).');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const email = process.env.SUPABASE_EMAIL ?? (await preguntar('Email de tu cuenta: '));
@@ -82,7 +83,8 @@ async function main() {
   const { data: sesion, error: errorLogin } = await supabase.auth.signInWithPassword({ email, password });
   if (errorLogin || !sesion.session) {
     console.error('No se ha podido iniciar sesión:', errorLogin?.message ?? 'sin sesión');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log('Sesión iniciada como', sesion.user.email);
 
@@ -92,7 +94,8 @@ async function main() {
     .order('created_at', { ascending: true });
   if (errorEspacios || !espacios || espacios.length === 0) {
     console.error('No se han podido listar los espacios:', errorEspacios?.message ?? 'ninguno encontrado');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   let espacio = espacios[0];
@@ -259,5 +262,5 @@ async function main() {
 
 main().catch((e) => {
   console.error('\nError durante la importación:', e.message);
-  process.exit(1);
+  process.exitCode = 1;
 });
