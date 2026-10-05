@@ -14,7 +14,7 @@ import {
   type FilaInformeCategoria,
   type MovimientoParaInforme,
 } from '../../../lib/agregaciones-informes';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Rows3, Table2 } from 'lucide-react';
 
 interface Categoria {
   id: string;
@@ -226,38 +226,75 @@ function SeccionDetalle({
 }) {
   const [abierta, setAbierta] = useState(true);
   const [categoriaExpandida, setCategoriaExpandida] = useState<string | null>(null);
+  const [vista, setVista] = useState<'acordeon' | 'tabla'>('tabla');
 
   return (
     <div className="tarjeta" style={{ padding: 0 }}>
-      <button
-        onClick={() => setAbierta(!abierta)}
+      <div
         style={{
-          width: '100%',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '16px 20px',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          textAlign: 'left',
         }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600 }}>
+        <button
+          onClick={() => setAbierta(!abierta)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 15,
+            fontWeight: 600,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
           {abierta ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           {titulo}
-        </span>
-        <span className={`cifra ${colorPositivo ? 'cifra-positiva' : 'cifra-negativa'}`} style={{ fontSize: 16, fontWeight: 600 }}>
-          {formatearMoneda(total)}
-        </span>
-      </button>
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {abierta && (
+            <div style={{ display: 'flex', gap: 2 }}>
+              <button
+                onClick={() => setVista('tabla')}
+                title="Tabla: concepto en filas, meses en columnas"
+                className={vista === 'tabla' ? 'boton-primario' : 'boton-secundario'}
+                style={{ padding: '4px 8px', fontSize: 12, display: 'flex', alignItems: 'center' }}
+              >
+                <Table2 size={14} />
+              </button>
+              <button
+                onClick={() => setVista('acordeon')}
+                title="Acordeón: cada categoría se expande por separado"
+                className={vista === 'acordeon' ? 'boton-primario' : 'boton-secundario'}
+                style={{ padding: '4px 8px', fontSize: 12, display: 'flex', alignItems: 'center' }}
+              >
+                <Rows3 size={14} />
+              </button>
+            </div>
+          )}
+          <span className={`cifra ${colorPositivo ? 'cifra-positiva' : 'cifra-negativa'}`} style={{ fontSize: 16, fontWeight: 600 }}>
+            {formatearMoneda(total)}
+          </span>
+        </div>
+      </div>
 
-      {abierta && (
+      {abierta && filas.length === 0 && (
+        <p className="estado-vacio" style={{ borderTop: '1px solid var(--color-border)' }}>
+          No hay movimientos en este rango.
+        </p>
+      )}
+
+      {abierta && filas.length > 0 && vista === 'tabla' && (
+        <TablaDinamicaCategorias filas={filas} meses={meses} total={total} />
+      )}
+
+      {abierta && filas.length > 0 && vista === 'acordeon' && (
         <div style={{ borderTop: '1px solid var(--color-border)' }}>
-          {filas.length === 0 ? (
-            <p className="estado-vacio">No hay movimientos en este rango.</p>
-          ) : (
-            filas.map((fila) => (
+            {filas.map((fila) => (
               <div key={fila.categoriaId}>
                 <button
                   onClick={() => setCategoriaExpandida(categoriaExpandida === fila.categoriaId ? null : fila.categoriaId)}
@@ -299,10 +336,70 @@ function SeccionDetalle({
                   </div>
                 )}
               </div>
-            ))
-          )}
+            ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function TablaDinamicaCategorias({
+  filas,
+  meses,
+  total,
+}: {
+  filas: FilaInformeCategoria[];
+  meses: string[];
+  total: number;
+}) {
+  return (
+    <div className="tabla-scroll" style={{ borderTop: '1px solid var(--color-border)' }}>
+      <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+            <th style={{ padding: '8px 20px', textAlign: 'left', color: 'var(--color-text-muted)', fontWeight: 500, position: 'sticky', left: 0, background: 'var(--color-bg)' }}>
+              Concepto
+            </th>
+            {meses.map((mes) => (
+              <th key={mes} style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--color-text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                {formatearMes(mes)}
+              </th>
+            ))}
+            <th style={{ padding: '8px 20px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filas.map((fila) => (
+            <tr key={fila.categoriaId} style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <td style={{ padding: '8px 20px', position: 'sticky', left: 0, background: 'var(--color-bg)' }}>{fila.categoriaNombre}</td>
+              {meses.map((mes) => (
+                <td key={mes} style={{ padding: '8px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {fila.porMes[mes] ? formatearMoneda(fila.porMes[mes]) : <span className="texto-ayuda">—</span>}
+                </td>
+              ))}
+              <td className="cifra" style={{ padding: '8px 20px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {formatearMoneda(fila.total)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ borderTop: '2px solid var(--color-border)' }}>
+            <td style={{ padding: '8px 20px', fontWeight: 600, position: 'sticky', left: 0, background: 'var(--color-bg)' }}>Total</td>
+            {meses.map((mes) => {
+              const totalMes = filas.reduce((acc, f) => acc + (f.porMes[mes] ?? 0), 0);
+              return (
+                <td key={mes} style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  {formatearMoneda(totalMes)}
+                </td>
+              );
+            })}
+            <td style={{ padding: '8px 20px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {formatearMoneda(total)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   );
 }
