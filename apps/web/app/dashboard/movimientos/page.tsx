@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearMoneda, formatearFecha } from '../../../lib/formato';
-import { Download, Upload, CalendarRange } from 'lucide-react';
+import { Download, Upload, CalendarRange, Rows3, Table2 } from 'lucide-react';
+import { VistaAnualMovimientos } from '../../../components/VistaAnualMovimientos';
 
 interface Cuenta {
   id: string;
@@ -41,6 +42,7 @@ interface Gasto {
 export default function PaginaMovimientos() {
   const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [pestana, setPestana] = useState<'ingresos' | 'gastos'>('ingresos');
+  const [vista, setVista] = useState<'lista' | 'anual'>('lista');
 
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -91,7 +93,7 @@ export default function PaginaMovimientos() {
   const categoriasDelTipo = categorias.filter((c) => c.tipo === (pestana === 'ingresos' ? 'ingreso' : 'gasto'));
 
   return (
-      <main className="contenido" style={{ maxWidth: 960 }}>
+      <main className="contenido" style={{ maxWidth: vista === 'anual' ? 1600 : 960 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Movimientos</h1>
@@ -115,13 +117,33 @@ export default function PaginaMovimientos() {
           )}
         </header>
 
-        <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--color-border)' }}>
-          <BotonPestana activa={pestana === 'ingresos'} onClick={() => setPestana('ingresos')}>
-            Ingresos
-          </BotonPestana>
-          <BotonPestana activa={pestana === 'gastos'} onClick={() => setPestana('gastos')}>
-            Gastos
-          </BotonPestana>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <BotonPestana activa={pestana === 'ingresos'} onClick={() => setPestana('ingresos')}>
+              Ingresos
+            </BotonPestana>
+            <BotonPestana activa={pestana === 'gastos'} onClick={() => setPestana('gastos')}>
+              Gastos
+            </BotonPestana>
+          </div>
+          <div style={{ display: 'flex', gap: 2, marginBottom: 6 }}>
+            <button
+              onClick={() => setVista('lista')}
+              title="Lista: un movimiento por fila"
+              className={vista === 'lista' ? 'boton-primario' : 'boton-secundario'}
+              style={{ padding: '4px 8px', fontSize: 12, display: 'flex', alignItems: 'center' }}
+            >
+              <Rows3 size={14} />
+            </button>
+            <button
+              onClick={() => setVista('anual')}
+              title="Vista anual: concepto en filas, meses en columnas"
+              className={vista === 'anual' ? 'boton-primario' : 'boton-secundario'}
+              style={{ padding: '4px 8px', fontSize: 12, display: 'flex', alignItems: 'center' }}
+            >
+              <Table2 size={14} />
+            </button>
+          </div>
         </div>
 
         {(errorEspacio || error) && (
@@ -135,45 +157,58 @@ export default function PaginaMovimientos() {
           </p>
         )}
 
-        <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
-          {token && espacio && pestana === 'ingresos' && (
-            <>
-              <ListaIngresos
-                ingresos={ingresos}
-                cuentas={cuentas}
-                categorias={categorias}
-                token={token}
-                onCambio={() => cargarTodo(token, espacio.id)}
-              />
-              <FormularioIngreso
-                token={token}
-                espacioId={espacio.id}
-                cuentas={cuentas}
-                categorias={categoriasDelTipo}
-                onCreado={() => cargarTodo(token, espacio.id)}
-              />
-            </>
-          )}
+        {vista === 'anual' && token && espacio && (
+          <div className="tarjeta">
+            <VistaAnualMovimientos
+              key={pestana}
+              token={token}
+              espacioId={espacio.id}
+              tipo={pestana === 'ingresos' ? 'ingreso' : 'gasto'}
+            />
+          </div>
+        )}
 
-          {token && espacio && pestana === 'gastos' && (
-            <>
-              <ListaGastos
-                gastos={gastos}
-                cuentas={cuentas}
-                categorias={categorias}
-                token={token}
-                onCambio={() => cargarTodo(token, espacio.id)}
-              />
-              <FormularioGasto
-                token={token}
-                espacioId={espacio.id}
-                cuentas={cuentas}
-                categorias={categoriasDelTipo}
-                onCreado={() => cargarTodo(token, espacio.id)}
-              />
-            </>
-          )}
-        </section>
+        {vista === 'lista' && (
+          <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 32 }}>
+            {token && espacio && pestana === 'ingresos' && (
+              <>
+                <ListaIngresos
+                  ingresos={ingresos}
+                  cuentas={cuentas}
+                  categorias={categorias}
+                  token={token}
+                  onCambio={() => cargarTodo(token, espacio.id)}
+                />
+                <FormularioIngreso
+                  token={token}
+                  espacioId={espacio.id}
+                  cuentas={cuentas}
+                  categorias={categoriasDelTipo}
+                  onCreado={() => cargarTodo(token, espacio.id)}
+                />
+              </>
+            )}
+
+            {token && espacio && pestana === 'gastos' && (
+              <>
+                <ListaGastos
+                  gastos={gastos}
+                  cuentas={cuentas}
+                  categorias={categorias}
+                  token={token}
+                  onCambio={() => cargarTodo(token, espacio.id)}
+                />
+                <FormularioGasto
+                  token={token}
+                  espacioId={espacio.id}
+                  cuentas={cuentas}
+                  categorias={categoriasDelTipo}
+                  onCreado={() => cargarTodo(token, espacio.id)}
+                />
+              </>
+            )}
+          </section>
+        )}
       </main>
   );
 }
