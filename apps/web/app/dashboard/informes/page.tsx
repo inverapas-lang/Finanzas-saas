@@ -136,7 +136,7 @@ export default function PaginaInformes() {
   }
 
   return (
-      <main className="contenido" style={{ maxWidth: 960 }}>
+      <main className="contenido" style={{ maxWidth: 1600 }}>
         <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Informes</h1>
