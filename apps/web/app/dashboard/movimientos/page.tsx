@@ -42,7 +42,7 @@ interface Gasto {
 export default function PaginaMovimientos() {
   const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [pestana, setPestana] = useState<'ingresos' | 'gastos'>('ingresos');
-  const [vista, setVista] = useState<'lista' | 'anual'>('lista');
+  const [vista, setVista] = useState<'lista' | 'anual'>('anual');
 
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -117,7 +117,7 @@ export default function PaginaMovimientos() {
           )}
         </header>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '1px solid var(--color-border)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--color-border)' }}>
           <div style={{ display: 'flex', gap: 4 }}>
             <BotonPestana activa={pestana === 'ingresos'} onClick={() => setPestana('ingresos')}>
               Ingresos
