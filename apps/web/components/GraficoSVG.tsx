@@ -29,7 +29,18 @@ export function GraficoSVG({ etiquetas, series, tipo, formatearValor, alto = 280
   const [puntoActivo, setPuntoActivo] = useState<{ serie: number; indice: number } | null>(null);
 
   const ANCHO = 720;
-  const MARGEN = { arriba: 16, abajo: 32, izquierda: 12, derecha: 12 };
+  // Con muchos puntos (p. ej. 22 meses de histórico) las etiquetas se
+  // solapan si se pintan todas en horizontal — a partir de cierta
+  // densidad se muestran menos (una de cada N, siempre incluyendo la
+  // última) y en diagonal para que quepan sin pisarse.
+  const MAX_ETIQUETAS_LEGIBLES = 12;
+  const pasoEtiqueta = Math.max(1, Math.ceil(etiquetas.length / MAX_ETIQUETAS_LEGIBLES));
+  const rotarEtiquetas = pasoEtiqueta > 1;
+  const indicesEtiquetasVisibles = etiquetas
+    .map((_, i) => i)
+    .filter((i) => i % pasoEtiqueta === 0 || i === etiquetas.length - 1);
+
+  const MARGEN = { arriba: 16, abajo: rotarEtiquetas ? 44 : 32, izquierda: 12, derecha: 12 };
   const altoUtil = alto - MARGEN.arriba - MARGEN.abajo;
   const anchoUtil = ANCHO - MARGEN.izquierda - MARGEN.derecha;
 
@@ -108,18 +119,23 @@ export function GraficoSVG({ etiquetas, series, tipo, formatearValor, alto = 280
             );
           })}
 
-        {etiquetas.map((etiqueta, i) => (
-          <text
-            key={i}
-            x={MARGEN.izquierda + i * anchoGrupo + anchoGrupo / 2}
-            y={alto - 10}
-            textAnchor="middle"
-            fontSize={11}
-            fill="var(--color-text-muted)"
-          >
-            {etiqueta}
-          </text>
-        ))}
+        {indicesEtiquetasVisibles.map((i) => {
+          const x = MARGEN.izquierda + i * anchoGrupo + anchoGrupo / 2;
+          const yEtiqueta = alto - (rotarEtiquetas ? 26 : 10);
+          return (
+            <text
+              key={i}
+              x={x}
+              y={yEtiqueta}
+              textAnchor={rotarEtiquetas ? 'end' : 'middle'}
+              fontSize={11}
+              fill="var(--color-text-muted)"
+              transform={rotarEtiquetas ? `rotate(-40 ${x} ${yEtiqueta})` : undefined}
+            >
+              {etiquetas[i]}
+            </text>
+          );
+        })}
       </svg>
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 4 }}>

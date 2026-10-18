@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
-import { formatearMoneda, formatearFecha } from '../../../lib/formato';
+import { formatearMoneda } from '../../../lib/formato';
 import { GraficoSVG } from '../../../components/GraficoSVG';
 import { Trash2 } from 'lucide-react';
 
@@ -31,10 +31,29 @@ function mesAEtiqueta(mesIso: string): string {
   return new Intl.DateTimeFormat('es-ES', { month: 'short', year: '2-digit' }).format(new Date(mesIso + 'T00:00:00'));
 }
 
+interface FilaConcepto {
+  etiqueta: string;
+  obtenerValor: (p: Patrimonio) => number;
+  destacada?: boolean;
+  informativa?: boolean;
+}
+
+const FILAS_CONCEPTO: FilaConcepto[] = [
+  { etiqueta: 'Cuentas', obtenerValor: (p) => p.total_cuentas },
+  { etiqueta: 'Inversiones líquidas', obtenerValor: (p) => p.total_inversiones_liquidas },
+  { etiqueta: 'Inversiones intocables', obtenerValor: (p) => p.total_inversiones_intocables },
+  { etiqueta: 'Inversiones ilíquidas', obtenerValor: (p) => p.total_inversiones_iliquidas, informativa: true },
+  { etiqueta: 'Deuda', obtenerValor: (p) => p.total_deuda },
+  { etiqueta: 'Patrimonio neto', obtenerValor: calcularPatrimonioNeto, destacada: true },
+];
+
 export default function PaginaPatrimonio() {
   const { token, espacio, error: errorEspacio } = useEspacioActivoContext();
   const [registros, setRegistros] = useState<Patrimonio[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [agrupacion, setAgrupacion] = useState<'mes' | 'anio'>('mes');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
 
   // Guarda de qué espacio es la petición más reciente en vuelo — si al
   // cambiar de espacio la respuesta del anterior llega tarde, no debe pisar
@@ -75,24 +94,58 @@ export default function PaginaPatrimonio() {
     if (espacio) await cargarRegistros(token, espacio.id);
   }
 
-  const etiquetas = registros.map((r) => mesAEtiqueta(r.mes));
-  const series = [
+  const registrosEnRango = registros.filter((r) => {
+    const mes = r.mes.slice(0, 7);
+    if (desde && mes < desde) return false;
+    if (hasta && mes > hasta) return false;
+    return true;
+  });
+
+  // En vista "mes" cada columna es un snapshot tal cual. En vista "año"
+  // se agrupa por año y cada columna muestra el último mes disponible
+  // de ese año (como un balance de cierre), no una suma ni una media —
+  // el patrimonio es una foto, no un caudal, así que sumar meses no
+  // tendría sentido.
+  const columnas: { etiqueta: string; registro: Patrimonio; esCierreParcial: boolean }[] =
+    agrupacion === 'mes'
+      ? registrosEnRango.map((r) => ({ etiqueta: mesAEtiqueta(r.mes), registro: r, esCierreParcial: false }))
+      : Object.values(
+          registrosEnRango.reduce<Record<string, Patrimonio>>((acc, r) => {
+            const anio = r.mes.slice(0, 4);
+            if (!acc[anio] || r.mes > acc[anio].mes) acc[anio] = r;
+            return acc;
+          }, {})
+        )
+          .sort((a, b) => a.mes.localeCompare(b.mes))
+          .map((r) => {
+            const anio = r.mes.slice(0, 4);
+            const esDiciembre = r.mes.slice(5, 7) === '12';
+            return {
+              etiqueta: esDiciembre ? anio : `${anio} (${mesAEtiqueta(r.mes).split(' ')[0]})`,
+              registro: r,
+              esCierreParcial: !esDiciembre,
+            };
+          });
+
+  const etiquetasGrafico = columnas.map((c) => c.etiqueta);
+  const seriesGrafico = [
     {
       nombre: 'Patrimonio neto',
       color: 'var(--color-accent)',
-      valores: registros.map(calcularPatrimonioNeto),
+      valores: columnas.map((c) => calcularPatrimonioNeto(c.registro)),
     },
-    { nombre: 'Cuentas', color: '#3b82f6', valores: registros.map((r) => r.total_cuentas) },
-    { nombre: 'Inversiones líquidas', color: '#10b981', valores: registros.map((r) => r.total_inversiones_liquidas) },
-    { nombre: 'Inversiones intocables', color: '#f59e0b', valores: registros.map((r) => r.total_inversiones_intocables) },
-    { nombre: 'Deuda', color: '#ef4444', valores: registros.map((r) => r.total_deuda) },
+    { nombre: 'Cuentas', color: '#3b82f6', valores: columnas.map((c) => c.registro.total_cuentas) },
+    { nombre: 'Inversiones líquidas', color: '#10b981', valores: columnas.map((c) => c.registro.total_inversiones_liquidas) },
+    { nombre: 'Inversiones intocables', color: '#f59e0b', valores: columnas.map((c) => c.registro.total_inversiones_intocables) },
+    { nombre: 'Deuda', color: '#ef4444', valores: columnas.map((c) => c.registro.total_deuda) },
   ];
 
-  const ultimoPatrimonioNeto = registros.length > 0 ? calcularPatrimonioNeto(registros[registros.length - 1]) : null;
+  const ultimoRegistro = registros.length > 0 ? registros[registros.length - 1] : null;
+  const ultimoPatrimonioNeto = ultimoRegistro ? calcularPatrimonioNeto(ultimoRegistro) : null;
 
   return (
-    <main className="contenido" style={{ maxWidth: 1080 }}>
-      <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+    <main className="contenido" style={{ maxWidth: 1600 }}>
+      <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Patrimonio histórico</h1>
           <p className="texto-ayuda" style={{ margin: '4px 0 0' }}>
@@ -117,88 +170,135 @@ export default function PaginaPatrimonio() {
 
       {token && espacio && (
         <>
+          <div className="tarjeta" style={{ marginBottom: 24, display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 13, fontWeight: 500 }}>
+              Desde <span className="texto-ayuda">(opcional)</span>
+              <input type="month" value={desde} onChange={(e) => setDesde(e.target.value)} className="campo-texto" style={{ marginTop: 6 }} />
+            </label>
+            <label style={{ fontSize: 13, fontWeight: 500 }}>
+              Hasta <span className="texto-ayuda">(opcional)</span>
+              <input type="month" value={hasta} onChange={(e) => setHasta(e.target.value)} className="campo-texto" style={{ marginTop: 6 }} />
+            </label>
+            {(desde || hasta) && (
+              <button className="enlace-discreto" onClick={() => { setDesde(''); setHasta(''); }}>
+                Ver todo el histórico
+              </button>
+            )}
+            <div style={{ display: 'flex', gap: 2, marginLeft: 'auto' }}>
+              <button
+                onClick={() => setAgrupacion('mes')}
+                className={agrupacion === 'mes' ? 'boton-primario' : 'boton-secundario'}
+                style={{ padding: '6px 12px', fontSize: 13 }}
+              >
+                Por mes
+              </button>
+              <button
+                onClick={() => setAgrupacion('anio')}
+                className={agrupacion === 'anio' ? 'boton-primario' : 'boton-secundario'}
+                style={{ padding: '6px 12px', fontSize: 13 }}
+              >
+                Por año
+              </button>
+            </div>
+          </div>
+
           <div className="tarjeta" style={{ marginBottom: 24 }}>
-            {registros.length === 0 ? (
+            {columnas.length === 0 ? (
               <p className="estado-vacio">
-                Aún no hay registros de patrimonio. Añade el primero con el formulario de abajo.
+                Aún no hay registros de patrimonio en este rango. Añade el primero con el formulario de abajo.
               </p>
             ) : (
-              <GraficoSVG etiquetas={etiquetas} series={series} tipo="lineas" formatearValor={formatearMoneda} />
+              <GraficoSVG etiquetas={etiquetasGrafico} series={seriesGrafico} tipo="lineas" formatearValor={formatearMoneda} />
             )}
           </div>
 
-          <section className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 32 }}>
-            <div>
-              <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Historial mensual ({registros.length})</h2>
-              <div className="tarjeta" style={{ padding: 0 }}>
-                <div className="tabla-scroll">
-                  <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        <th style={celdaCabecera}>Mes</th>
-                        <th style={celdaCabecera}>Cuentas</th>
-                        <th style={celdaCabecera}>Inv. líquidas</th>
-                        <th style={celdaCabecera}>Inv. intocables</th>
-                        <th style={celdaCabecera}>Inv. ilíquidas</th>
-                        <th style={celdaCabecera}>Deuda</th>
-                        <th style={celdaCabecera}>Patrimonio neto</th>
-                        <th style={celdaCabecera}></th>
+          <div style={{ marginBottom: 32 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
+              Historial {agrupacion === 'mes' ? 'mensual' : 'anual'} ({columnas.length})
+            </h2>
+            {columnas.length === 0 ? (
+              <p className="estado-vacio">Nada que mostrar en este rango.</p>
+            ) : (
+              <div className="tabla-scroll">
+                <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <th style={celdaCabecera('left', true)}>Concepto</th>
+                      {columnas.map((c, i) => (
+                        <th key={i} style={celdaCabecera('right')} title={c.esCierreParcial ? 'Año todavía incompleto — último mes disponible' : undefined}>
+                          {c.etiqueta}
+                          {c.esCierreParcial ? ' *' : ''}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {FILAS_CONCEPTO.map((fila) => (
+                      <tr key={fila.etiqueta} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ ...celda('left', true), fontWeight: fila.destacada ? 700 : 400, color: fila.informativa ? 'var(--color-text-muted)' : undefined }}>
+                          {fila.etiqueta}
+                        </td>
+                        {columnas.map((c, i) => (
+                          <td key={i} style={{ ...celda('right'), fontWeight: fila.destacada ? 700 : 400 }}>
+                            {formatearMoneda(fila.obtenerValor(c.registro))}
+                          </td>
+                        ))}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {registros.map((r, i) => (
-                        <tr key={r.id} style={{ borderBottom: i === registros.length - 1 ? 'none' : '1px solid var(--color-border)' }}>
-                          <td style={celda}>{formatearFecha(r.mes)}</td>
-                          <td style={celda}>{formatearMoneda(r.total_cuentas)}</td>
-                          <td style={celda}>{formatearMoneda(r.total_inversiones_liquidas)}</td>
-                          <td style={celda}>{formatearMoneda(r.total_inversiones_intocables)}</td>
-                          <td style={celda}>{formatearMoneda(r.total_inversiones_iliquidas)}</td>
-                          <td style={celda}>{formatearMoneda(r.total_deuda)}</td>
-                          <td style={{ ...celda, fontWeight: 600 }}>{formatearMoneda(calcularPatrimonioNeto(r))}</td>
-                          <td style={{ ...celda, textAlign: 'right' }}>
+                    ))}
+                    {agrupacion === 'mes' && (
+                      <tr>
+                        <td style={celda('left', true)}></td>
+                        {columnas.map((c, i) => (
+                          <td key={i} style={{ ...celda('right') }}>
                             <button
                               className="enlace-discreto"
                               style={{ color: 'var(--color-red-text)' }}
-                              onClick={() => eliminar(r.id)}
-                              title="Eliminar"
+                              onClick={() => eliminar(c.registro.id)}
+                              title="Eliminar este mes"
                             >
                               <Trash2 size={14} />
                             </button>
                           </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                        ))}
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            )}
+          </div>
 
-            <FormularioPatrimonio
-              token={token}
-              espacioId={espacio.id}
-              onCreado={() => cargarRegistros(token, espacio.id)}
-            />
-          </section>
+          <FormularioPatrimonio
+            token={token}
+            espacioId={espacio.id}
+            onCreado={() => cargarRegistros(token, espacio.id)}
+          />
         </>
       )}
     </main>
   );
 }
 
-const celdaCabecera: React.CSSProperties = {
-  padding: '10px 16px',
-  textAlign: 'left',
-  fontSize: 12,
-  fontWeight: 600,
-  color: 'var(--color-text-muted)',
-  whiteSpace: 'nowrap',
-};
+function celdaCabecera(align: 'left' | 'right', fijo = false): React.CSSProperties {
+  return {
+    padding: '10px 16px',
+    textAlign: align,
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--color-text-muted)',
+    whiteSpace: 'nowrap',
+    ...(fijo ? { position: 'sticky', left: 0, background: 'var(--color-bg)' } : {}),
+  };
+}
 
-const celda: React.CSSProperties = {
-  padding: '10px 16px',
-  fontSize: 13,
-  whiteSpace: 'nowrap',
-};
+function celda(align: 'left' | 'right', fijo = false): React.CSSProperties {
+  return {
+    padding: '8px 16px',
+    textAlign: align,
+    whiteSpace: 'nowrap',
+    ...(fijo ? { position: 'sticky', left: 0, background: 'var(--color-bg)' } : {}),
+  };
+}
 
 function FormularioPatrimonio({
   token,
@@ -259,7 +359,7 @@ function FormularioPatrimonio({
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: 420 }}>
       <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Nuevo snapshot mensual</h2>
       <form onSubmit={crear} className="tarjeta" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <label style={{ fontSize: 13, fontWeight: 500 }}>
