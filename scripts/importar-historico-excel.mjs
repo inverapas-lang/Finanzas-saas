@@ -13,12 +13,12 @@
 //   SUPABASE_EMAIL=tu@email.com SUPABASE_PASSWORD=tu-contraseña \
 //     node scripts/importar-historico-excel.mjs
 //
-// Es idempotente en las categorías (no duplica una categoría que ya
-// exista con el mismo nombre/tipo/padre) pero NO en los movimientos ni
-// en patrimonio_historico: ejecutarlo dos veces duplicaría ingresos y
-// gastos (patrimonio_historico sí falla limpio la segunda vez gracias a
-// su restricción unique(espacio_id, mes), así que esa parte es segura
-// de reintentar). Pensado para una única ejecución de carga inicial.
+// Es idempotente: ni las categorías (no duplica una que ya exista con
+// el mismo nombre/tipo/padre) ni los movimientos (si una categoría ya
+// tiene un movimiento en un mes dado, lo salta) ni patrimonio_historico
+// (restricción unique(espacio_id, mes)) se duplican si se vuelve a
+// ejecutar — pensado para poder relanzarlo sin miedo si se interrumpe
+// a mitad.
 
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, existsSync } from 'node:fs';
@@ -151,10 +151,29 @@ async function main() {
 
   async function cargarSerieMensual(categoriaId, tipo, nombreDescripcion, valores) {
     const tabla = tipo === 'ingreso' ? 'ingresos' : 'gastos';
+
+    // Idempotencia: si el script se interrumpe a mitad (como ya ha
+    // pasado) y se vuelve a lanzar, no debe duplicar los movimientos de
+    // las categorías que ya se cargaron la vez anterior — se comprueba
+    // qué fechas de esta categoría ya existen y esas se saltan.
+    const { data: existentes, error: errorExistentes } = await supabase
+      .from(tabla)
+      .select('fecha_prevista')
+      .eq('espacio_id', espacio.id)
+      .eq('categoria_id', categoriaId)
+      .in('fecha_prevista', MESES_2026);
+    if (errorExistentes) throw new Error(`Comprobando ${tabla} existentes de "${nombreDescripcion}": ${errorExistentes.message}`);
+    const fechasExistentes = new Set((existentes ?? []).map((f) => f.fecha_prevista));
+
     const filas = [];
+    let omitidas = 0;
     valores.forEach((valor, i) => {
       if (!valor) return; // no crear movimientos de 0€, no aportan nada
       const fecha = MESES_2026[i];
+      if (fechasExistentes.has(fecha)) {
+        omitidas++;
+        return;
+      }
       const fila = {
         espacio_id: espacio.id,
         categoria_id: categoriaId,
@@ -176,6 +195,7 @@ async function main() {
       }
       filas.push(fila);
     });
+    if (omitidas > 0) console.log(`  (${nombreDescripcion}: ${omitidas} meses ya existían, omitidos)`);
     if (filas.length === 0) return 0;
     const { error } = await supabase.from(tabla).insert(filas);
     if (error) throw new Error(`Insertando ${tabla} de "${nombreDescripcion}": ${error.message}`);
