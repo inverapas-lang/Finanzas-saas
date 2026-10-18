@@ -120,14 +120,16 @@ async function main() {
     const clave = `${tipo}:${nombre}:${categoriaPadreId ?? ''}`;
     if (cacheCategorias.has(clave)) return cacheCategorias.get(clave);
 
-    const { data: existente, error: errorBuscar } = await supabase
+    let consulta = supabase
       .from('categorias')
       .select('id')
       .eq('espacio_id', espacio.id)
       .eq('tipo', tipo)
-      .eq('nombre', nombre)
-      .is('categoria_padre_id', categoriaPadreId)
-      .maybeSingle();
+      .eq('nombre', nombre);
+    // .is() de PostgREST solo admite null/true/false — para comparar con
+    // un UUID real hace falta .eq().
+    consulta = categoriaPadreId === null ? consulta.is('categoria_padre_id', null) : consulta.eq('categoria_padre_id', categoriaPadreId);
+    const { data: existente, error: errorBuscar } = await consulta.maybeSingle();
     if (errorBuscar) throw new Error(`Buscando categoría "${nombre}": ${errorBuscar.message}`);
     if (existente) {
       cacheCategorias.set(clave, existente.id);
