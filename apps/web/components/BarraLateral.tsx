@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   TrendingUp,
+  Rocket,
 } from 'lucide-react';
 
 interface EspacioSimple {
@@ -42,6 +43,7 @@ interface Props {
 
 const ITEMS = [
   { href: '/dashboard', etiqueta: 'Panel', Icono: LayoutDashboard },
+  { href: '/dashboard/bienvenida', etiqueta: 'Primeros pasos', Icono: Rocket },
   { href: '/dashboard/chat', etiqueta: 'Asistente financiero', Icono: Sparkles },
   { href: '/dashboard/movimientos', etiqueta: 'Movimientos', Icono: Receipt },
   { href: '/dashboard/categorias', etiqueta: 'Categorías', Icono: Tags },

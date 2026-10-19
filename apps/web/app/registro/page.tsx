@@ -64,7 +64,7 @@ export default function PaginaRegistro() {
     }
 
     await completarRegistroSiHaceFalta(supabase);
-    router.push('/dashboard');
+    router.push('/dashboard/bienvenida');
   }
 
   if (revisaEmail) {
