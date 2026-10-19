@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
 import { formatearMoneda } from '../../../lib/formato';
 import { GraficoSVG } from '../../../components/GraficoSVG';
+import { DetallePatrimonio } from '../../../components/DetallePatrimonio';
 import { Trash2 } from 'lucide-react';
 
 interface Patrimonio {
@@ -273,6 +274,8 @@ export default function PaginaPatrimonio() {
             espacioId={espacio.id}
             onCreado={() => cargarRegistros(token, espacio.id)}
           />
+
+          <DetallePatrimonio token={token} espacioId={espacio.id} />
         </>
       )}
     </main>
