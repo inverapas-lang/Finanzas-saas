@@ -110,6 +110,10 @@ async function main() {
 
   const datosPath = path.join(RAIZ, 'scripts/datos-importacion/datos-excel.json');
   const datos = JSON.parse(readFileSync(datosPath, 'utf-8'));
+  const datosPatrimonioDetallePath = path.join(RAIZ, 'scripts/datos-importacion/patrimonio-detalle.json');
+  const datosPatrimonioDetalle = existsSync(datosPatrimonioDetallePath)
+    ? JSON.parse(readFileSync(datosPatrimonioDetallePath, 'utf-8'))
+    : null;
 
   const usuarioId = sesion.user.id;
 
@@ -278,6 +282,31 @@ async function main() {
     patrimonioCreados++;
   }
   console.log(`Meses de patrimonio creados: ${patrimonioCreados} (omitidos por ya existir: ${patrimonioOmitidos})`);
+
+  // ---------- Patrimonio histórico — detalle por concepto ----------
+  if (datosPatrimonioDetalle) {
+    console.log('\n--- Histórico de patrimonio — detalle por cuenta/inversión/deuda ---');
+    let itemsCreados = 0;
+    for (const item of datosPatrimonioDetalle.items) {
+      const filas = Object.entries(item.valores).map(([mes, valor]) => ({
+        espacio_id: espacio.id,
+        mes,
+        bloque: item.bloque,
+        concepto: item.concepto,
+        valor,
+        created_by: usuarioId,
+      }));
+      // upsert por la clave única (espacio_id, mes, bloque, concepto): si ya
+      // existe un valor para ese concepto y mes, lo actualiza en vez de
+      // duplicar — relanzar el script dos veces es seguro.
+      const { error } = await supabase
+        .from('patrimonio_historico_item')
+        .upsert(filas, { onConflict: 'espacio_id,mes,bloque,concepto' });
+      if (error) throw new Error(`Insertando detalle de patrimonio "${item.concepto}": ${error.message}`);
+      itemsCreados += filas.length;
+    }
+    console.log(`Filas de detalle de patrimonio creadas/actualizadas: ${itemsCreados}`);
+  }
 
   console.log('\nImportación terminada.');
 }

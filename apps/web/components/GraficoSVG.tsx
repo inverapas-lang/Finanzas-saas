@@ -11,7 +11,7 @@ export interface SerieGrafico {
 interface Props {
   etiquetas: string[];
   series: SerieGrafico[];
-  tipo: 'barras' | 'lineas';
+  tipo: 'barras' | 'lineas' | 'puntos';
   formatearValor: (v: number) => string;
   alto?: number;
 }
@@ -96,20 +96,20 @@ export function GraficoSVG({ etiquetas, series, tipo, formatearValor, alto = 280
             })
           )}
 
-        {tipo === 'lineas' &&
+        {(tipo === 'lineas' || tipo === 'puntos') &&
           series.map((serie, serieIdx) => {
             const puntos = serie.valores
               .map((valor, i) => `${MARGEN.izquierda + i * anchoGrupo + anchoGrupo / 2},${y(valor)}`)
               .join(' ');
             return (
               <g key={serieIdx}>
-                <polyline points={puntos} fill="none" stroke={serie.color} strokeWidth={2} />
+                {tipo === 'lineas' && <polyline points={puntos} fill="none" stroke={serie.color} strokeWidth={2} />}
                 {serie.valores.map((valor, i) => (
                   <circle
                     key={i}
                     cx={MARGEN.izquierda + i * anchoGrupo + anchoGrupo / 2}
                     cy={y(valor)}
-                    r={puntoActivo?.serie === serieIdx && puntoActivo.indice === i ? 5 : 3}
+                    r={puntoActivo?.serie === serieIdx && puntoActivo.indice === i ? 6 : tipo === 'puntos' ? 4 : 3}
                     fill={serie.color}
                     onMouseEnter={() => setPuntoActivo({ serie: serieIdx, indice: i })}
                     onMouseLeave={() => setPuntoActivo(null)}
