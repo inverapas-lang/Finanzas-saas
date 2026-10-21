@@ -44,6 +44,16 @@ export function VistaAnualMovimientos({ token, espacioId, tipo }: Props) {
     anioVigente.current = anio;
   }, [anio]);
 
+  // Guarda de qué espacio es la petición más reciente en vuelo — si al
+  // cambiar de espacio con el selector la respuesta del anterior llega
+  // tarde, no debe pisar la rejilla que ya muestra el espacio nuevo
+  // (el padre no desmonta este componente al cambiar de espacio, solo
+  // al cambiar de pestaña ingresos/gastos).
+  const espacioIdVigente = useRef(espacioId);
+  useEffect(() => {
+    espacioIdVigente.current = espacioId;
+  }, [espacioId]);
+
   const tabla = tipo === 'ingreso' ? 'ingresos' : 'gastos';
   const campoImporte = tipo === 'ingreso' ? 'importe_esperado' : 'importe_previsto';
   const campoFechaConfirmacion = tipo === 'ingreso' ? 'fecha_cobrada' : 'fecha_pagada';
@@ -52,6 +62,7 @@ export function VistaAnualMovimientos({ token, espacioId, tipo }: Props) {
     async (anioConsultado: number) => {
       setCargando(true);
       setError(null);
+      const espId = espacioId;
       const headers = { Authorization: `Bearer ${token}` };
       const desde = `${anioConsultado}-01-01`;
       const hasta = `${anioConsultado}-12-31`;
@@ -62,13 +73,15 @@ export function VistaAnualMovimientos({ token, espacioId, tipo }: Props) {
         ]);
         if (!resCategorias.ok || !resMovimientos.ok) throw new Error('No se han podido cargar los datos.');
         const [datosCategorias, datosMovimientos] = await Promise.all([resCategorias.json(), resMovimientos.json()]);
-        if (anioVigente.current !== anioConsultado) return;
+        if (anioVigente.current !== anioConsultado || espacioIdVigente.current !== espId) return;
         setCategorias(datosCategorias.data ?? []);
         setMovimientos(datosMovimientos.data ?? []);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al cargar los datos.');
+        if (espacioIdVigente.current === espId) {
+          setError(e instanceof Error ? e.message : 'Error al cargar los datos.');
+        }
       } finally {
-        if (anioVigente.current === anioConsultado) setCargando(false);
+        if (anioVigente.current === anioConsultado && espacioIdVigente.current === espId) setCargando(false);
       }
     },
     [token, espacioId, tipo, tabla]
@@ -231,17 +244,28 @@ function CeldaEditable({
 }) {
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState(String(c.valor || ''));
+  // Mientras el guardado está en vuelo, la celda no se puede reabrir —
+  // ingresos/gastos no tienen restricción única por categoría+mes, así
+  // que un segundo clic rápido antes de que llegue el movimientoId real
+  // del primer guardado crearía un movimiento duplicado de verdad, no
+  // solo un error bloqueado por la base de datos.
+  const [guardando, setGuardando] = useState(false);
   const noEditable = c.cantidadMovimientos > 1;
 
   useEffect(() => {
     if (!editando) setTexto(String(c.valor || ''));
   }, [c.valor, editando]);
 
-  function confirmar() {
-    setEditando(false);
+  async function confirmar() {
     const nuevoValor = texto.trim() === '' ? 0 : Number(texto.replace(',', '.'));
+    setEditando(false);
     if (Number.isFinite(nuevoValor) && nuevoValor !== c.valor) {
-      onGuardar(nuevoValor);
+      setGuardando(true);
+      try {
+        await onGuardar(nuevoValor);
+      } finally {
+        setGuardando(false);
+      }
     }
   }
 
@@ -282,9 +306,15 @@ function CeldaEditable({
 
   return (
     <td
-      onClick={() => setEditando(true)}
-      style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap', cursor: 'pointer' }}
-      title="Haz clic para editar"
+      onClick={() => !guardando && setEditando(true)}
+      style={{
+        padding: '6px 12px',
+        textAlign: 'right',
+        whiteSpace: 'nowrap',
+        cursor: guardando ? 'default' : 'pointer',
+        opacity: guardando ? 0.5 : 1,
+      }}
+      title={guardando ? 'Guardando…' : 'Haz clic para editar'}
     >
       {c.valor ? formatearMoneda(c.valor) : <span className="texto-ayuda">—</span>}
     </td>

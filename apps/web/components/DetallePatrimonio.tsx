@@ -531,16 +531,27 @@ function CeldaEditable({
 }) {
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState(String(c.valor || ''));
+  // Mientras el guardado está en vuelo (POST/PATCH + recarga) la celda no
+  // se puede volver a abrir — si no, un segundo clic rápido antes de que
+  // llegue el id real del primer guardado dispararía otro POST con la
+  // misma clave (espacio, mes, bloque, concepto) y la base de datos lo
+  // rechazaría, perdiendo ese segundo cambio.
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     if (!editando) setTexto(String(c.valor || ''));
   }, [c.valor, editando]);
 
-  function confirmar() {
-    setEditando(false);
+  async function confirmar() {
     const nuevoValor = texto.trim() === '' ? 0 : Number(texto.replace(',', '.'));
+    setEditando(false);
     if (Number.isFinite(nuevoValor) && nuevoValor !== c.valor) {
-      onGuardar(nuevoValor);
+      setGuardando(true);
+      try {
+        await onGuardar(nuevoValor);
+      } finally {
+        setGuardando(false);
+      }
     }
   }
 
@@ -570,9 +581,15 @@ function CeldaEditable({
 
   return (
     <td
-      onClick={() => setEditando(true)}
-      style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap', cursor: 'pointer' }}
-      title="Haz clic para editar"
+      onClick={() => !guardando && setEditando(true)}
+      style={{
+        padding: '6px 12px',
+        textAlign: 'right',
+        whiteSpace: 'nowrap',
+        cursor: guardando ? 'default' : 'pointer',
+        opacity: guardando ? 0.5 : 1,
+      }}
+      title={guardando ? 'Guardando…' : 'Haz clic para editar'}
     >
       {c.valor ? formatearMoneda(c.valor) : <span className="texto-ayuda">—</span>}
     </td>

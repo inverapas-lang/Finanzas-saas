@@ -40,7 +40,7 @@ export function GraficoSVG({ etiquetas, series, tipo, formatearValor, alto = 280
     .map((_, i) => i)
     .filter((i) => i % pasoEtiqueta === 0 || i === etiquetas.length - 1);
 
-  const MARGEN = { arriba: 16, abajo: rotarEtiquetas ? 44 : 32, izquierda: 12, derecha: 12 };
+  const MARGEN = { arriba: 16, abajo: rotarEtiquetas ? 50 : 32, izquierda: rotarEtiquetas ? 40 : 12, derecha: 12 };
   const altoUtil = alto - MARGEN.arriba - MARGEN.abajo;
   const anchoUtil = ANCHO - MARGEN.izquierda - MARGEN.derecha;
 
@@ -121,7 +121,7 @@ export function GraficoSVG({ etiquetas, series, tipo, formatearValor, alto = 280
 
         {indicesEtiquetasVisibles.map((i) => {
           const x = MARGEN.izquierda + i * anchoGrupo + anchoGrupo / 2;
-          const yEtiqueta = alto - (rotarEtiquetas ? 26 : 10);
+          const yEtiqueta = alto - (rotarEtiquetas ? 32 : 10);
           return (
             <text
               key={i}

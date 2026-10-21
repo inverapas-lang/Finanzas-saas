@@ -13,12 +13,13 @@
 //   SUPABASE_EMAIL=tu@email.com SUPABASE_PASSWORD=tu-contraseña \
 //     node scripts/importar-historico-excel.mjs
 //
-// Es idempotente: ni las categorías (no duplica una que ya exista con
-// el mismo nombre/tipo/padre) ni los movimientos (si una categoría ya
-// tiene un movimiento en un mes dado, lo salta) ni patrimonio_historico
-// (restricción unique(espacio_id, mes)) se duplican si se vuelve a
-// ejecutar — pensado para poder relanzarlo sin miedo si se interrumpe
-// a mitad.
+// Es idempotente y "autocorregible": las categorías no se duplican
+// (reutiliza la existente con el mismo nombre/tipo/padre), y tanto los
+// movimientos como patrimonio_historico y su detalle por concepto
+// ACTUALIZAN la fila existente si ya había una para esa categoría/mes
+// (o mes/bloque/concepto) en vez de limitarse a saltarla — así que si
+// corriges un dato en datos-excel.json y vuelves a lanzar el script, la
+// corrección se aplica de verdad, no se queda ignorada en silencio.
 
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, existsSync } from 'node:fs';
@@ -157,53 +158,60 @@ async function main() {
     const tabla = tipo === 'ingreso' ? 'ingresos' : 'gastos';
 
     // Idempotencia: si el script se interrumpe a mitad (como ya ha
-    // pasado) y se vuelve a lanzar, no debe duplicar los movimientos de
-    // las categorías que ya se cargaron la vez anterior — se comprueba
-    // qué fechas de esta categoría ya existen y esas se saltan.
+    // pasado) o se corrige un dato en datos-excel.json y se relanza, no
+    // debe duplicar los movimientos de las categorías que ya se
+    // cargaron — pero tampoco debe limitarse a saltarlos en silencio
+    // (eso dejaría una corrección sin aplicar). Se busca el id de la
+    // fila existente por categoría+fecha y, si existe, se actualiza en
+    // vez de insertar otra.
     const { data: existentes, error: errorExistentes } = await supabase
       .from(tabla)
-      .select('fecha_prevista')
+      .select('id, fecha_prevista')
       .eq('espacio_id', espacio.id)
       .eq('categoria_id', categoriaId)
       .in('fecha_prevista', MESES_2026);
     if (errorExistentes) throw new Error(`Comprobando ${tabla} existentes de "${nombreDescripcion}": ${errorExistentes.message}`);
-    const fechasExistentes = new Set((existentes ?? []).map((f) => f.fecha_prevista));
+    const idExistentePorFecha = new Map((existentes ?? []).map((f) => [f.fecha_prevista, f.id]));
 
-    const filas = [];
-    let omitidas = 0;
-    valores.forEach((valor, i) => {
-      if (!valor) return; // no crear movimientos de 0€, no aportan nada
+    const filasNuevas = [];
+    let actualizadas = 0;
+    for (let i = 0; i < valores.length; i++) {
+      const valor = valores[i];
+      if (!valor) continue; // no crear movimientos de 0€, no aportan nada
       const fecha = MESES_2026[i];
-      if (fechasExistentes.has(fecha)) {
-        omitidas++;
-        return;
+      const importe = Math.abs(valor);
+
+      const campos = {
+        descripcion: `${nombreDescripcion} — ${fecha.slice(0, 7)}`,
+        importe_real: importe,
+        ...(tipo === 'ingreso'
+          ? { importe_esperado: importe, fecha_cobrada: fecha }
+          : { importe_previsto: importe, fecha_pagada: fecha }),
+      };
+
+      const idExistente = idExistentePorFecha.get(fecha);
+      if (idExistente) {
+        const { error } = await supabase.from(tabla).update(campos).eq('id', idExistente);
+        if (error) throw new Error(`Actualizando ${tabla} de "${nombreDescripcion}" (${fecha}): ${error.message}`);
+        actualizadas++;
+        continue;
       }
-      const fila = {
+
+      filasNuevas.push({
         espacio_id: espacio.id,
         categoria_id: categoriaId,
-        descripcion: `${nombreDescripcion} — ${fecha.slice(0, 7)}`,
         fecha_prevista: fecha,
         moneda: 'EUR',
         periodicidad: 'unico',
         created_by: usuarioId,
-      };
-      const importe = Math.abs(valor);
-      if (tipo === 'ingreso') {
-        fila.importe_esperado = importe;
-        fila.importe_real = importe;
-        fila.fecha_cobrada = fecha;
-      } else {
-        fila.importe_previsto = importe;
-        fila.importe_real = importe;
-        fila.fecha_pagada = fecha;
-      }
-      filas.push(fila);
-    });
-    if (omitidas > 0) console.log(`  (${nombreDescripcion}: ${omitidas} meses ya existían, omitidos)`);
-    if (filas.length === 0) return 0;
-    const { error } = await supabase.from(tabla).insert(filas);
+        ...campos,
+      });
+    }
+    if (actualizadas > 0) console.log(`  (${nombreDescripcion}: ${actualizadas} meses ya existían, actualizados con el valor actual)`);
+    if (filasNuevas.length === 0) return actualizadas;
+    const { error } = await supabase.from(tabla).insert(filasNuevas);
     if (error) throw new Error(`Insertando ${tabla} de "${nombreDescripcion}": ${error.message}`);
-    return filas.length;
+    return filasNuevas.length + actualizadas;
   }
 
   let totalMovimientos = 0;
@@ -258,30 +266,25 @@ async function main() {
   console.log('\n--- Histórico de patrimonio (Resumen) ---');
   const { patrimonio_historico: ph } = datos;
   const meses = Object.keys(ph.total_cuentas).sort();
-  let patrimonioCreados = 0;
-  let patrimonioOmitidos = 0;
-  for (const mes of meses) {
-    const fila = {
-      espacio_id: espacio.id,
-      mes,
-      total_cuentas: ph.total_cuentas[mes] ?? 0,
-      total_inversiones_liquidas: ph.total_inversiones_liquidas[mes] ?? 0,
-      total_inversiones_intocables: ph.total_inversiones_intocables[mes] ?? 0,
-      total_inversiones_iliquidas: ph.total_inversiones_iliquidas[mes] ?? 0,
-      total_deuda: ph.total_deuda[mes] ?? 0,
-      created_by: usuarioId,
-    };
-    const { error } = await supabase.from('patrimonio_historico').insert(fila);
-    if (error) {
-      if (error.code === '23505') {
-        patrimonioOmitidos++;
-        continue;
-      }
-      throw new Error(`Insertando patrimonio de ${mes}: ${error.message}`);
-    }
-    patrimonioCreados++;
-  }
-  console.log(`Meses de patrimonio creados: ${patrimonioCreados} (omitidos por ya existir: ${patrimonioOmitidos})`);
+  const filasPatrimonio = meses.map((mes) => ({
+    espacio_id: espacio.id,
+    mes,
+    total_cuentas: ph.total_cuentas[mes] ?? 0,
+    total_inversiones_liquidas: ph.total_inversiones_liquidas[mes] ?? 0,
+    total_inversiones_intocables: ph.total_inversiones_intocables[mes] ?? 0,
+    total_inversiones_iliquidas: ph.total_inversiones_iliquidas[mes] ?? 0,
+    total_deuda: ph.total_deuda[mes] ?? 0,
+    created_by: usuarioId,
+  }));
+  // upsert por unique(espacio_id, mes): si el mes ya existía se actualiza
+  // con el valor actual de datos-excel.json en vez de dejarlo tal cual
+  // estaba (igual que cargarSerieMensual arriba y que el detalle por
+  // concepto más abajo).
+  const { error: errorPatrimonio } = await supabase
+    .from('patrimonio_historico')
+    .upsert(filasPatrimonio, { onConflict: 'espacio_id,mes' });
+  if (errorPatrimonio) throw new Error(`Guardando patrimonio_historico: ${errorPatrimonio.message}`);
+  console.log(`Meses de patrimonio creados/actualizados: ${filasPatrimonio.length}`);
 
   // ---------- Patrimonio histórico — detalle por concepto ----------
   if (datosPatrimonioDetalle) {
