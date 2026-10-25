@@ -25,7 +25,7 @@ finanzas-saas/
 | Web: login, Panel, Movimientos (+ exportar CSV/Excel/PDF), Presupuestos, Préstamos e hipotecas (+ adjuntos), Activos (+ adjuntos), Usuarios, Notificaciones, Asistente financiero | ✅ Implementado, diseño estilo Notion | Pendiente de tu primera prueba en el PC para todo lo de las últimas rondas (multiusuario, notificaciones, exportación, documentos, chat) |
 | Documentos adjuntos (Supabase Storage) | ✅ Código escrito | **No probado ni con la migración aplicada** — requiere `supabase db push` |
 | Asistente financiero (chat con IA) | ✅ Completo: `lib/contexto-financiero.ts`, `lib/obtener-datos-financieros.ts`, `lib/validacion-chat.ts`, `app/api/chat/route.ts` y `app/dashboard/chat/page.tsx` | Compila sin errores (`tsc --noEmit`) contra los tipos reales de Next/Supabase/React. Lógica de agregación (patrimonio, gasto por categoría, presupuestos) verificada con 7 casos simulados. La llamada real a la API de Anthropic **sigue sin probarse** — requiere tu propia `ANTHROPIC_API_KEY`; sin ella, el endpoint devuelve un 503 controlado, no rompe la app |
-| Despliegue | ❌ Sigue solo en local (`localhost`) | Nunca se ha hecho `vercel deploy` |
+| Despliegue | ✅ En producción en https://finanzas-saas-tan.vercel.app | Vercel (plan gratuito), redespliega solo con cada push a `main`. Ver `DESPLIEGUE.md` |
 
 ## Exportación
 
@@ -91,13 +91,14 @@ Cada préstamo/hipoteca y cada activo tiene una sección "Documentos adjuntos" (
 ### 1. Requisitos previos
 - Node.js 20+ en tu ordenador.
 - Cuenta gratuita en [supabase.com](https://supabase.com) — ya la tienes creada y con el esquema aplicado.
-- Cuenta gratuita en [vercel.com](https://vercel.com) — para cuando lo despleguemos (pendiente).
+- Cuenta gratuita en [vercel.com](https://vercel.com) — ya creada; ahí está desplegada la app.
 
 ### 2. Variables de entorno
 ```bash
 cd apps/web
 cp .env.example .env.local
-# Edita .env.local con tu Project URL y anon key (Supabase → Project Settings → API)
+# Edita .env.local con tu Project URL y anon key (Supabase → Project Settings → API).
+# Vale igual la "publishable key" con el nombre NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.
 ```
 
 ### 3. Instalar dependencias y correr los tests
@@ -119,13 +120,8 @@ supabase link --project-ref <tu-project-ref>   # solo si la carpeta ha cambiado 
 supabase db push
 ```
 
-### 6. Desplegar a producción (pendiente, próximo paso lógico)
-```bash
-npm install -g vercel
-vercel login
-vercel --cwd apps/web
-```
-Vercel da una URL pública — eso ya sería "la web" accesible desde el móvil, no solo desde tu ordenador.
+### 6. Producción
+La app está en **https://finanzas-saas-tan.vercel.app**. No hay que desplegar a mano: Vercel está conectado al repositorio de GitHub y publica una versión nueva cada vez que algo llega a `main`. Detalles y checklist en `DESPLIEGUE.md`.
 
 ---
 

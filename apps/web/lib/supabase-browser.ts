@@ -1,6 +1,7 @@
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr';
+import { leerConfigSupabase } from './supabase-config';
 
 let cliente: ReturnType<typeof createBrowserClient> | null = null;
 
@@ -12,13 +13,7 @@ let cliente: ReturnType<typeof createBrowserClient> | null = null;
 export function crearClienteSupabaseNavegador() {
   if (cliente) return cliente;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY');
-  }
-
-  cliente = createBrowserClient(url, anonKey);
+  const { url, clavePublica } = leerConfigSupabase();
+  cliente = createBrowserClient(url, clavePublica);
   return cliente;
 }
