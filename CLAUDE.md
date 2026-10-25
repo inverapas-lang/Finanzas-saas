@@ -137,7 +137,7 @@ falta regenerarlos.
 1. `tsc --noEmit`: `node_modules/.bin/tsc --project apps/web/tsconfig.json --noEmit 2>&1 | grep -v "xlsx"` (los 2-3 errores de `xlsx` son esperados, ese paquete no está instalado aquí).
 2. `npm run test` desde la raíz — corre los tres workspaces (`loan-engine`, `projection-engine`, `web`).
 3. Para un `next build` completo (recomendable antes de cambios grandes): quitar temporalmente la línea `"xlsx"` de `apps/web/package.json`, crear un stub mínimo en `apps/web/node_modules/xlsx/` (`package.json`+`index.d.ts`+`index.js` con `utils.aoa_to_sheet/json_to_sheet/book_new/book_append_sheet/encode_cell`, `read`, `write`), compilar con `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` dummy, y borrar el stub + restaurar `package.json` al terminar. **Nunca** cambiar `xlsx` a la versión de npm (CVE-2023-30533 sin parchear) — la dependencia apunta a pinned CDN de SheetJS a propósito.
-4. Tras cada cambio: commitear y hacer `git push origin claude/new-session-g97n3o` (el usuario hace `git pull` + `supabase db push` si hay migración nueva + `npm run dev` en su PC).
+4. Tras cada cambio: commitear en una rama, push y PR contra `main`. Al fusionar, Vercel redespliega producción; si hay migración nueva, aplicarla con `supabase db push` **antes** de fusionar para que producción no use tablas que aún no existen.
 
 ## Decisiones ya tomadas que no hay que reabrir
 
@@ -151,14 +151,27 @@ falta regenerarlos.
   usar la misma fórmula que `calcularPatrimonioNeto` en
   `app/dashboard/patrimonio/page.tsx`.
 
+## Producción (Vercel)
+
+- Desplegado en **https://finanzas-saas-tan.vercel.app** (Vercel plan
+  Hobby, proyecto `finanzas-saas`, Root Directory `apps/web`). Cada push
+  a `main` redespliega solo. Vercel se eligió frente al EC2 del usuario
+  porque ese servidor (t3.micro, 908 MB sin swap) aloja sus bots de
+  trading y no hay que arriesgarlos — no desplegar nada ahí.
+- Misma base de datos que en local: Supabase `zhwfegjnhlnuoyxeuwdq`,
+  con migraciones aplicadas hasta la `0016`. Site URL y Redirect URLs de
+  Supabase Auth ya apuntan a la URL de Vercel (y a `localhost:3000`).
+- Variables en Vercel: las crea la integración de Supabase, que usa el
+  nombre nuevo `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; además hay una
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY` añadida a mano. `lib/supabase-config.ts`
+  acepta cualquiera de las dos (prioriza ANON).
+
 ## Pendiente / sin confirmar
 
 - `ANTHROPIC_API_KEY`: estado real sin confirmar en este entorno — el
   asistente de chat (`/dashboard/chat`) nunca se ha probado con una
   llamada real a la API de Anthropic hasta donde consta en este
   documento.
-- Despliegue: el proyecto sigue solo en local/Vercel-sin-confirmar, no
-  hay constancia de un `vercel deploy` hecho.
 - El Supabase del usuario es de plan gratuito y se **pausa solo tras
   ~7 días de inactividad** — si un `supabase db push` o un login dan
   error de conexión/timeout, lo primero es comprobar en

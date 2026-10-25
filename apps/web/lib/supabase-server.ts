@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest } from 'next/server';
+import { leerConfigSupabase } from './supabase-config';
 
 /**
  * Crea un cliente Supabase autenticado como el usuario de la petición
@@ -13,16 +14,9 @@ import { NextRequest } from 'next/server';
 export function crearClienteSupabaseDeRequest(request: NextRequest): SupabaseClient {
   const authHeader = request.headers.get('authorization');
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { url, clavePublica } = leerConfigSupabase();
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY en las variables de entorno'
-    );
-  }
-
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(url, clavePublica, {
     global: {
       headers: authHeader ? { Authorization: authHeader } : {},
     },
