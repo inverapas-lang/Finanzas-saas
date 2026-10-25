@@ -75,6 +75,11 @@ variable/mixto), proyección de cash-flow, notificaciones de
 pagos/cobros próximos, integración bancaria (GoCardless/Open Banking),
 asistente financiero por chat (`/dashboard/chat`, requiere
 `ANTHROPIC_API_KEY` — sin ella responde 503 controlado, no rompe nada).
+El asistente consulta datos con herramientas y puede **proponer**
+cambios en gastos, ingresos y patrimonio histórico, pero nunca escribe:
+el usuario los aplica desde la tarjeta de la propuesta y se guardan por
+las rutas de API normales. No dar a la IA una herramienta que escriba
+directamente en la base de datos (ver README > Asistente financiero).
 
 **Multi-espacio**: selector de espacio en la barra lateral
 (`useEspacioActivo` + contexto) para usuarios que pertenecen a más de

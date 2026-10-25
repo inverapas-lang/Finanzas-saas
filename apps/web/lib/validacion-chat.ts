@@ -18,6 +18,9 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * (coste en tokens) por un fallo del cliente que no recorta el historial. */
 const MAX_MENSAJES = 60;
 const MAX_LONGITUD_MENSAJE = 4000;
+/** Los del asistente llevan además la nota de la propuesta (cambios con
+ * sus ids y si se aplicaron), que puede ocupar bastante más. */
+const MAX_LONGITUD_MENSAJE_ASISTENTE = 20000;
 
 /**
  * Valida el cuerpo de POST /api/chat. Función PURA (sin Supabase ni
@@ -55,10 +58,11 @@ export function validarPayloadChat(body: unknown): PayloadChat {
     if (typeof mm.contenido !== 'string' || mm.contenido.trim().length === 0) {
       throw new ErrorApi(400, `mensajes[${indice}].contenido debe ser texto no vacío`);
     }
-    if (mm.contenido.length > MAX_LONGITUD_MENSAJE) {
+    const limite = mm.rol === 'asistente' ? MAX_LONGITUD_MENSAJE_ASISTENTE : MAX_LONGITUD_MENSAJE;
+    if (mm.contenido.length > limite) {
       throw new ErrorApi(
         400,
-        `mensajes[${indice}].contenido supera el límite de ${MAX_LONGITUD_MENSAJE} caracteres`
+        `mensajes[${indice}].contenido supera el límite de ${limite} caracteres`
       );
     }
     return { rol: mm.rol, contenido: mm.contenido } as MensajeChat;

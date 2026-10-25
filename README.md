@@ -50,20 +50,22 @@ Desde `/dashboard/usuarios` (solo visible/operable si eres `owner` del espacio):
 
 ## Asistente financiero (chat con IA)
 
-`/dashboard/chat` — responde preguntas sobre tus datos financieros reales (proyección del mes, patrimonio, gasto por categoría de los últimos 3 meses, presupuestos activos, préstamos/hipotecas).
+`/dashboard/chat`: le preguntas por tus números y, si se lo pides, los ajusta.
 
-**Requiere configuración que no hemos hecho todavía**: necesitas tu propia clave de la API de Anthropic (se pide en console.anthropic.com, es de pago por uso, no tiene relación con tu cuenta de Claude.ai). Se guarda como `ANTHROPIC_API_KEY` en `apps/web/.env.local` — **nunca** se expone al navegador, solo la usa `app/api/chat/route.ts` en el servidor.
+- **Preguntas:** tiene un resumen de la situación actual (patrimonio, proyección del mes, gasto por categoría de los últimos 3 meses, presupuestos, préstamos) y, para todo lo demás, consulta tus datos con herramientas: categorías, movimientos concretos, totales por mes o categoría de cualquier periodo e histórico de patrimonio línea a línea.
+- **Ajustes:** puede proponer modificar, crear o eliminar gastos, ingresos y valores del histórico de patrimonio. **Nunca escribe por su cuenta**: la propuesta aparece como una tarjeta con el valor actual → el nuevo y los botones «Aplicar cambios» / «Descartar». Al aplicar, el navegador llama a las rutas de API de siempre (`/api/gastos`, `/api/ingresos`, `/api/patrimonio-historico-item`) con tu sesión, así que pasan por las mismas validaciones y permisos (RLS) que si lo editaras a mano.
 
-Decisiones de diseño:
-- No se envía el histórico completo de movimientos al modelo (sería caro en tokens e innecesario) — se envía un resumen: proyección, patrimonio, gasto agregado por categoría (últimos 3 meses) y presupuestos activos con su desviación.
-- El prompt del sistema le prohíbe explícitamente inventar cifras que no estén en ese resumen, y darte consejos de inversión o fiscales.
-- El histórico de la conversación se manda completo en cada petición (el modelo no tiene memoria entre llamadas) — normal en cualquier integración de este tipo, pero significa que conversaciones muy largas consumen más tokens (y por tanto más coste) en cada mensaje nuevo.
+Piezas:
+- `app/api/chat/route.ts`: bucle de herramientas con el SDK oficial `@anthropic-ai/sdk`, modelo `claude-opus-5-5` (esfuerzo `medium`), con *fallback* automático de Anthropic si el modelo rechaza una petición. Máximo 10 consultas por mensaje.
+- `lib/herramientas-asistente.ts`: definición y ejecución de las herramientas. Leen siempre con el cliente Supabase del usuario, nunca con la service role. `proponer_cambios` valida la propuesta, comprueba que cada id existe en el espacio activo y rellena el «antes» con lo que hay en la base de datos, no con lo que diga la IA.
+- `lib/validacion-propuesta.ts`: valida la forma de la propuesta con los mismos validadores que las rutas de API.
+- `lib/aplicar-propuesta.ts`: qué petición corresponde a cada cambio y la nota que se añade al historial para que la IA sepa en el siguiente mensaje si la propuesta se aplicó o se descartó.
 
-**Aviso de verificación**: la función que construye el resumen de contexto (`formatearContextoFinanciero`) está verificada (7/7 casos, ronda anterior). La nueva función `obtenerDatosFinancieros` (agregación desde Supabase: patrimonio, gasto por categoría últimos 3 meses, gastado vs. planificado por presupuesto) se ha verificado con un cliente Supabase simulado (7/7 casos, incluidos: uso de `importe_real` sobre `importe_previsto` cuando ya está pagado, filtrado correcto por fecha, y detección de presupuesto superado). El endpoint `/api/chat` y la pantalla `/dashboard/chat` compilan sin errores de tipos contra Next.js/Supabase/React reales. **La llamada real a la API de Anthropic sigue sin probarse** — no hay clave de API configurada en este entorno. Pruébalo tú con tu propia clave antes de darlo por bueno.
+Configuración: necesita `ANTHROPIC_API_KEY` (console.anthropic.com, de pago por uso, sin relación con tu cuenta de Claude.ai) en `apps/web/.env.local` y en las variables de Vercel. Solo la usa el servidor. Sin ella, `/api/chat` responde un 503 controlado y el resto de la app funciona igual.
 
-**Nota sobre `apps/web/tsconfig.json`**: no estaba en el export que me pasaste. No es necesariamente un problema — Next.js genera uno automáticamente la primera vez que ejecutas `npm run dev` si detecta TypeScript y no lo encuentra — pero si al arrancar ves un error de tipos raro, puede ser por eso; dímelo y lo creamos a mano.
+Coste: cada mensaje recalcula el resumen y manda el historial completo de la conversación; las preguntas que necesitan varias consultas hacen varias llamadas al modelo. Las conversaciones largas cuestan más por mensaje.
 
-**Nota sobre verificación en general**: en esta ronda he confirmado que `apps/web` no tiene ningún framework de tests instalado (no hay `vitest.config`, no hay `.test.ts` bajo `apps/web/`), a diferencia de `packages/loan-engine` y `packages/projection-engine`, que sí lo tienen y cuyos 45 tests he ejecutado y pasan de verdad. Los "X/X casos verificados" que se mencionan para funciones de `apps/web/lib` (`mapearFilaImportada`, `construirRutaDocumento`, `formatearContextoFinanciero`, etc.) se comprobaron en su momento con scripts sueltos que no se guardaron en el proyecto — no hay manera de re-ejecutarlos ahora mismo salvo que se vuelvan a escribir. Si te importa poder reverificarlos en el futuro, sería buena idea añadir `vitest` también a `apps/web` y convertir esas comprobaciones en tests reales guardados en el repo.
+Verificación: la lógica (validación de propuestas, herramientas contra un Supabase simulado, bucle de la ruta con el SDK simulado, construcción de peticiones) está cubierta por tests de `vitest`. **La llamada real a la API de Anthropic no se ha probado todavía** desde este entorno (no hay clave real en `.env.local`).
 
 ## Importación de Excel
 
