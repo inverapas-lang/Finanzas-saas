@@ -1,3 +1,8 @@
+> ⚠️ Documento histórico (estado del proyecto en una fase muy temprana).
+> El contexto actualizado y de verdad vigente vive en `CLAUDE.md` en la
+> raíz del repo — léelo primero. Este archivo se deja solo como
+> referencia de cómo empezó el proyecto.
+
 # Contexto del proyecto: Finanzas SaaS
 
 App de finanzas personales multi-tenant (backend Supabase + Postgres/RLS,

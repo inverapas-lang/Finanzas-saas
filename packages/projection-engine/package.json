@@ -1,0 +1,15 @@
+{
+  "name": "@finanzas-saas/projection-engine",
+  "version": "0.1.0",
+  "description": "Motor de proyección de fin de mes / fin de año a partir de reglas recurrentes y movimientos reales.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.10"
+  }
+}

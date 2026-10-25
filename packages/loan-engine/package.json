@@ -1,0 +1,15 @@
+{
+  "name": "@finanzas-saas/loan-engine",
+  "version": "0.1.0",
+  "description": "Motor de cálculo de amortización de préstamos e hipotecas (sistema francés, cuota constante, con soporte de amortizaciones anticipadas).",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.10"
+  }
+}

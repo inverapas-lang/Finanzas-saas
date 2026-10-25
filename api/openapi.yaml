@@ -1,0 +1,487 @@
+openapi: 3.0.3
+info:
+  title: Finanzas SaaS API
+  version: 0.1.0
+  description: >
+    API REST de la aplicación de finanzas personales/SaaS. La autorización
+    real la aplica PostgreSQL Row Level Security (ver supabase/migrations);
+    esta API es una capa fina que reenvía el JWT del usuario a Supabase.
+    Estado de implementación por recurso, ver tabla en README.md — esta
+    especificación documenta el contrato objetivo completo, no solo lo ya
+    codificado.
+servers:
+  - url: /api
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+    IngresoInput:
+      type: object
+      required: [espacio_id, descripcion, importe_esperado, fecha_prevista]
+      properties:
+        espacio_id: { type: string, format: uuid }
+        categoria_id: { type: string, format: uuid, nullable: true }
+        cuenta_id: { type: string, format: uuid, nullable: true }
+        descripcion: { type: string }
+        importe_esperado: { type: number, minimum: 0 }
+        importe_real: { type: number, minimum: 0, nullable: true }
+        moneda: { type: string, default: EUR }
+        fecha_prevista: { type: string, format: date }
+        fecha_cobrada: { type: string, format: date, nullable: true }
+        periodicidad:
+          type: string
+          enum: [unico, semanal, mensual, bimestral, trimestral, semestral, anual]
+        observaciones: { type: string, nullable: true }
+    GastoInput:
+      allOf:
+        - $ref: '#/components/schemas/IngresoInput'
+        - type: object
+          properties:
+            subcategoria_id: { type: string, format: uuid, nullable: true }
+            importe_previsto: { type: number, minimum: 0 }
+            fecha_pagada: { type: string, format: date, nullable: true }
+            notas: { type: string, nullable: true }
+    ResultadoProyeccion:
+      type: object
+      properties:
+        fechaCorte: { type: string, format: date }
+        fechaObjetivo: { type: string, format: date }
+        realConfirmadoIngresos: { type: number }
+        realConfirmadoGastos: { type: number }
+        proyectadoIngresos: { type: number }
+        proyectadoGastos: { type: number }
+        totalEstimadoIngresos: { type: number }
+        totalEstimadoGastos: { type: number }
+        saldoEstimado: { type: number }
+        desglosePorCategoria:
+          type: array
+          items:
+            type: object
+            properties:
+              categoriaId: { type: string, nullable: true }
+              totalIngresos: { type: number }
+              totalGastos: { type: number }
+
+security:
+  - bearerAuth: []
+
+paths:
+  /ingresos:
+    get:
+      summary: Listar ingresos de un espacio financiero (implementado)
+      parameters:
+        - name: espacio_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: desde
+          in: query
+          schema: { type: string, format: date }
+        - name: hasta
+          in: query
+          schema: { type: string, format: date }
+        - name: categoria_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: cuenta_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Lista de ingresos
+        '400':
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    post:
+      summary: Crear un ingreso (implementado)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngresoInput' }
+      responses:
+        '201':
+          description: Ingreso creado
+        '403':
+          description: Sin permiso (bloqueado por RLS)
+        '400':
+          description: Validación fallida
+
+  /ingresos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Obtener un ingreso (implementado)
+      responses:
+        '200': { description: OK }
+        '404': { description: No encontrado o sin acceso }
+    patch:
+      summary: Actualizar un ingreso (implementado)
+      responses:
+        '200': { description: Actualizado }
+        '403': { description: Sin permiso }
+    delete:
+      summary: Eliminar un ingreso (implementado)
+      responses:
+        '204': { description: Eliminado }
+        '403': { description: Sin permiso }
+
+  /gastos:
+    get:
+      summary: Listar gastos de un espacio financiero (implementado, mismo patrón que /ingresos)
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Crear un gasto (implementado)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GastoInput' }
+      responses:
+        '201': { description: Creado }
+
+  /gastos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Obtener un gasto (implementado)
+      responses:
+        '200': { description: OK }
+    patch:
+      summary: Actualizar un gasto (implementado)
+      responses:
+        '200': { description: OK }
+    delete:
+      summary: Eliminar un gasto (implementado)
+      responses:
+        '204': { description: Eliminado }
+
+  /proyeccion:
+    get:
+      summary: Proyección de ingresos/gastos hasta una fecha objetivo (implementado)
+      parameters:
+        - name: espacio_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: hasta
+          in: query
+          description: '"fin_mes", "fin_anio" o fecha YYYY-MM-DD'
+          schema: { type: string }
+      responses:
+        '200':
+          description: Proyección calculada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ResultadoProyeccion' }
+
+  # --- Los siguientes recursos siguen exactamente el mismo patrón que
+  # /ingresos y /gastos (CRUD + RLS vía Postgres). Documentados de forma
+  # resumida para no repetir 6 veces el mismo contrato. ---
+
+  /cuentas-bancarias:
+    get:
+      summary: Listar cuentas bancarias del espacio (implementado)
+      responses: { '200': { description: OK } }
+    post:
+      summary: Crear cuenta bancaria (implementado)
+      responses: { '201': { description: Creado } }
+  /cuentas-bancarias/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get: { summary: 'Obtener una cuenta (implementado)', responses: { '200': { description: OK } } }
+    patch: { summary: 'Actualizar una cuenta (implementado)', responses: { '200': { description: OK } } }
+    delete: { summary: 'Eliminar una cuenta (implementado)', responses: { '204': { description: Eliminado } } }
+
+  /categorias:
+    get:
+      summary: Listar categorías del espacio (implementado)
+      responses: { '200': { description: OK } }
+    post:
+      summary: Crear categoría (implementado, valida que la categoría padre sea del mismo tipo)
+      responses: { '201': { description: Creado } }
+  /categorias/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get: { summary: 'Obtener una categoría (implementado)', responses: { '200': { description: OK } } }
+    patch: { summary: 'Actualizar una categoría (implementado)', responses: { '200': { description: OK } } }
+    delete: { summary: 'Eliminar una categoría (implementado)', responses: { '204': { description: Eliminado } } }
+
+  /activos:
+    get:
+      summary: Listar activos del espacio (implementado)
+      responses: { '200': { description: OK } }
+    post:
+      summary: >
+        Crear activo (implementado). fuente_valoracion solo admite "manual"
+        de momento — "api_externa" se rechaza explícitamente porque no hay
+        ninguna integración de valoración automática conectada todavía.
+      responses: { '201': { description: Creado } }
+  /activos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get: { summary: 'Obtener un activo (implementado)', responses: { '200': { description: OK } } }
+    patch: { summary: 'Actualizar un activo (implementado)', responses: { '200': { description: OK } } }
+    delete: { summary: 'Eliminar un activo (implementado)', responses: { '204': { description: Eliminado } } }
+
+  /pasivos:
+    get:
+      summary: Listar pasivos del espacio (implementado)
+      responses: { '200': { description: OK } }
+    post:
+      summary: Crear pasivo (implementado) — genera automáticamente el cuadro de amortización completo vía loan-engine
+      responses: { '201': { description: Creado } }
+  /pasivos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get: { summary: 'Obtener un pasivo (implementado)', responses: { '200': { description: OK } } }
+    patch: { summary: 'Actualizar un pasivo (implementado) — regenera el cuadro si cambia algo que afecta al cálculo', responses: { '200': { description: OK } } }
+    delete: { summary: 'Eliminar un pasivo (implementado) — borra en cascada su cuadro, revisiones y amortizaciones extra', responses: { '204': { description: Eliminado } } }
+  /pasivos/{id}/cuadro:
+    get:
+      summary: Devuelve el cuadro de amortización ya generado y guardado (implementado, solo lectura)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses: { '200': { description: OK } }
+  /pasivos/{id}/revisiones:
+    post:
+      summary: >
+        Registra una revisión REAL de tipo de interés (implementado) y
+        regenera el cuadro completo desde el origen. Tú aportas el valor
+        del índice publicado — nunca se trae de ninguna fuente automática.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses: { '201': { description: Creada } }
+    get:
+      summary: Lista el histórico de revisiones reales de un pasivo (implementado)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses: { '200': { description: OK } }
+  /pasivos/{id}/amortizaciones-extra:
+    post:
+      summary: Registra una amortización anticipada REAL (implementado) y regenera el cuadro
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses: { '201': { description: Creada } }
+    get:
+      summary: Lista las amortizaciones extra reales de un pasivo (implementado)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses: { '200': { description: OK } }
+  /pasivos/{id}/simular:
+    post:
+      summary: >
+        Simula (sin guardar nada) una amortización parcial o una
+        cancelación total, comparando contra el escenario real actual del
+        pasivo — incluyendo revisiones de tipo y amortizaciones ya
+        registradas de verdad (implementado).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Resultado de la simulación }
+        '404': { description: Pasivo no encontrado }
+        '409': { description: Ya existe una amortización real en esa misma cuota }
+
+  /espacios/{id}/miembros:
+    get:
+      summary: Listar los miembros de un espacio financiero, con su rol (implementado)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses: { '200': { description: OK } }
+    post:
+      summary: >
+        Invitar a un usuario YA REGISTRADO a este espacio, por email
+        (implementado). No crea cuentas nuevas ni envía correos — busca
+        el email exacto vía la función SQL buscar_usuario_por_email.
+        Solo el owner del espacio tiene permiso (aplicado por RLS).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Miembro añadido }
+        '404': { description: No existe ninguna cuenta con ese email }
+        '409': { description: Esa persona ya es miembro de este espacio }
+  /espacios/{id}/miembros/{usuarioId}:
+    delete:
+      summary: Eliminar un miembro del espacio (implementado). No se puede eliminar al owner.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: usuarioId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Eliminado }
+        '400': { description: No se puede eliminar al propietario }
+
+  /notificaciones:
+    get:
+      summary: >
+        Calcula al vuelo (no persistido) pagos/cobros próximos (7 días) o
+        vencidos, y presupuestos del periodo actual superados
+        (implementado).
+      parameters:
+        - name: espacio_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses: { '200': { description: Lista de notificaciones } }
+
+  /exportar:
+    get:
+      summary: >
+        Descarga CSV, Excel o PDF de todos los ingresos/gastos del espacio,
+        con filtro opcional de fechas (implementado). El CSV usa ";" como
+        separador (no ","), por compatibilidad con Excel en español. El
+        PDF incluye tabla + totales de ingresos/gastos/saldo.
+      parameters:
+        - name: espacio_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: formato
+          in: query
+          schema: { type: string, enum: [csv, xlsx, pdf] }
+        - name: desde
+          in: query
+          schema: { type: string, format: date }
+        - name: hasta
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Archivo descargable }
+
+  # --- Presupuestos: ya implementado (el comentario de "pendiente" que
+  # tenía este bloque en versiones anteriores del contrato quedó obsoleto) ---
+  /presupuestos:
+    get:
+      summary: Listar presupuestos del espacio (implementado)
+      responses: { '200': { description: OK } }
+    post:
+      summary: >
+        Crear/planificar presupuesto (implementado). Solo admite
+        categorías de tipo "gasto"; periodo_inicio debe ser el día 1 del
+        mes (mensual) o el 1 de enero (anual).
+      responses: { '201': { description: Creado } }
+  /presupuestos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get: { summary: 'Obtener un presupuesto (implementado)', responses: { '200': { description: OK } } }
+    patch: { summary: 'Actualizar un presupuesto (implementado)', responses: { '200': { description: OK } } }
+    delete: { summary: 'Eliminar un presupuesto (implementado)', responses: { '204': { description: Eliminado } } }
+
+  /chat:
+    post:
+      summary: >
+        Asistente financiero (implementado). Responde preguntas del
+        usuario usando SOLO un resumen de sus datos reales (proyección,
+        patrimonio, gasto por categoría, presupuestos, préstamos) como
+        contexto — nunca inventa cifras fuera de ese contexto. Requiere
+        ANTHROPIC_API_KEY configurada en el servidor; sin ella devuelve
+        503 de forma controlada, no rompe el resto de la aplicación.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [espacio_id, pregunta]
+              properties:
+                espacio_id: { type: string, format: uuid }
+                pregunta: { type: string }
+                historial:
+                  type: array
+                  description: Mensajes previos de la conversación (role/content), opcional
+                  items:
+                    type: object
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string }
+      responses:
+        '200': { description: Respuesta del asistente }
+        '503': { description: ANTHROPIC_API_KEY no configurada }
+        '502': { description: Error del servicio de IA }
+
+  /importar:
+    post:
+      summary: >
+        Importa ingresos/gastos desde un Excel (implementado). Mismas
+        columnas que /exportar formato=xlsx. Procesa todas las filas y
+        devuelve un resumen (creados, errores por número de fila) — no
+        para en el primer error. Categorías nuevas se crean automáticas;
+        cuentas nuevas no (para evitar duplicados por errata).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archivo, espacio_id]
+              properties:
+                archivo: { type: string, format: binary }
+                espacio_id: { type: string, format: uuid }
+      responses:
+        '200': { description: Resumen de la importación (creados/errores) }
+        '400': { description: Archivo inválido, demasiado grande, o sin filas de datos }

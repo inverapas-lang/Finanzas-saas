@@ -1,0 +1,174 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  Landmark,
+  Receipt,
+  PiggyBank,
+  Wallet,
+  Users,
+  Bell,
+  Sparkles,
+  LogOut,
+  Repeat,
+  Target,
+  BarChart3,
+  Building2,
+  Tags,
+  FileBarChart,
+  Menu,
+  X,
+  TrendingUp,
+  Rocket,
+} from 'lucide-react';
+
+interface EspacioSimple {
+  id: string;
+  nombre: string;
+}
+
+interface Props {
+  nombreEspacio: string;
+  onCerrarSesion: () => void;
+  /** Opcionales: si se pasan, la campana de notificaciones muestra el contador real. */
+  espacioId?: string;
+  token?: string;
+  /** Opcionales: si hay más de un espacio, se muestra el selector para cambiar entre ellos. */
+  espacios?: EspacioSimple[];
+  onCambiarEspacio?: (id: string) => void;
+}
+
+const ITEMS = [
+  { href: '/dashboard', etiqueta: 'Panel', Icono: LayoutDashboard },
+  { href: '/dashboard/bienvenida', etiqueta: 'Primeros pasos', Icono: Rocket },
+  { href: '/dashboard/chat', etiqueta: 'Asistente financiero', Icono: Sparkles },
+  { href: '/dashboard/movimientos', etiqueta: 'Movimientos', Icono: Receipt },
+  { href: '/dashboard/categorias', etiqueta: 'Categorías', Icono: Tags },
+  { href: '/dashboard/reglas-recurrentes', etiqueta: 'Reglas recurrentes', Icono: Repeat },
+  { href: '/dashboard/presupuestos', etiqueta: 'Presupuestos', Icono: PiggyBank },
+  { href: '/dashboard/metas', etiqueta: 'Metas de ahorro', Icono: Target },
+  { href: '/dashboard/pasivos', etiqueta: 'Préstamos e hipotecas', Icono: Landmark },
+  { href: '/dashboard/activos', etiqueta: 'Activos', Icono: Wallet },
+  { href: '/dashboard/patrimonio', etiqueta: 'Patrimonio histórico', Icono: TrendingUp },
+  { href: '/dashboard/bancos', etiqueta: 'Bancos', Icono: Building2 },
+  { href: '/dashboard/informes', etiqueta: 'Informes', Icono: FileBarChart },
+  { href: '/dashboard/graficos', etiqueta: 'Gráficos', Icono: BarChart3 },
+  { href: '/dashboard/usuarios', etiqueta: 'Usuarios', Icono: Users },
+];
+
+export function BarraLateral({ nombreEspacio, onCerrarSesion, espacioId, token, espacios, onCambiarEspacio }: Props) {
+  const pathname = usePathname();
+  const inicial = nombreEspacio.trim().charAt(0).toUpperCase() || '?';
+  const [numNotificaciones, setNumNotificaciones] = useState<number | null>(null);
+  const [abierta, setAbierta] = useState(false);
+
+  useEffect(() => {
+    if (!espacioId || !token) return;
+    let cancelado = false;
+    fetch(`/api/notificaciones?espacio_id=${espacioId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((cuerpo) => {
+        if (!cancelado) setNumNotificaciones((cuerpo.data ?? []).length);
+      })
+      .catch(() => {
+        if (!cancelado) setNumNotificaciones(null);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [espacioId, token]);
+
+  // Al navegar a otra pantalla (móvil), el cajón se cierra solo — si se
+  // quedara abierto, taparía la pantalla nueva hasta que el usuario lo
+  // cerrara a mano.
+  useEffect(() => {
+    setAbierta(false);
+  }, [pathname]);
+
+  return (
+    <>
+      <div className="sidebar-topbar">
+        <button className="boton-hamburguesa" onClick={() => setAbierta(true)} aria-label="Abrir menú">
+          <Menu size={20} strokeWidth={1.75} />
+        </button>
+        <span className="sidebar-titulo">{nombreEspacio}</span>
+      </div>
+
+      <div className={`sidebar-overlay ${abierta ? 'visible' : ''}`} onClick={() => setAbierta(false)} />
+
+      <nav className={`sidebar ${abierta ? 'sidebar-abierta' : ''}`}>
+        <div className="sidebar-cabecera">
+          <div className="sidebar-avatar">{inicial}</div>
+          {espacios && espacios.length > 1 && onCambiarEspacio ? (
+            <select
+              value={espacioId ?? ''}
+              onChange={(e) => onCambiarEspacio(e.target.value)}
+              className="sidebar-titulo"
+              style={{ border: 'none', background: 'none', cursor: 'pointer', flex: 1, minWidth: 0, padding: 0 }}
+              aria-label="Cambiar de espacio"
+            >
+              {espacios.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="sidebar-titulo">{nombreEspacio}</span>
+          )}
+          <button className="boton-cerrar-sidebar" onClick={() => setAbierta(false)} aria-label="Cerrar menú">
+            <X size={18} strokeWidth={1.75} />
+          </button>
+        </div>
+
+      <Link
+        href="/dashboard/notificaciones"
+        className={`sidebar-item ${pathname === '/dashboard/notificaciones' ? 'activo' : ''}`}
+        style={{ justifyContent: 'space-between' }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Bell size={16} strokeWidth={1.75} />
+          Notificaciones
+        </span>
+        {numNotificaciones !== null && numNotificaciones > 0 && (
+          <span
+            className="cifra"
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '1px 6px',
+              borderRadius: 10,
+              background: 'var(--color-red-text)',
+              color: '#fff',
+            }}
+          >
+            {numNotificaciones}
+          </span>
+        )}
+      </Link>
+
+      {ITEMS.map(({ href, etiqueta, Icono }) => (
+        <Link
+          key={href}
+          href={href}
+          className={`sidebar-item ${pathname === href ? 'activo' : ''}`}
+        >
+          <Icono size={16} strokeWidth={1.75} />
+          {etiqueta}
+        </Link>
+      ))}
+
+        <div style={{ flex: 1 }} />
+        <button className="sidebar-item" onClick={onCerrarSesion}>
+          <LogOut size={16} strokeWidth={1.75} />
+          Cerrar sesión
+        </button>
+      </nav>
+    </>
+  );
+}

@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# production
+build/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# datos personales extraídos de un Excel para una importación puntual —
+# nunca a git (nombres de familiares, sueldos, deudas reales)
+scripts/datos-importacion/*.json
+
+# caché local de la CLI de Supabase
+supabase/.temp/
