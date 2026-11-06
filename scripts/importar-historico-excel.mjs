@@ -62,6 +62,19 @@ function leerEnvLocal() {
 
 async function preguntar(texto, oculto = false) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
+  if (oculto) {
+    // Tras escribir la pregunta, readline deja de hacer eco de lo que se
+    // teclea: la contraseña no queda a la vista en la terminal.
+    let preguntaMostrada = false;
+    rl._writeToOutput = (s) => {
+      if (!preguntaMostrada) {
+        process.stdout.write(s);
+        preguntaMostrada = true;
+      } else if (s.includes('\n')) {
+        process.stdout.write('\n');
+      }
+    };
+  }
   const respuesta = await rl.question(texto);
   rl.close();
   return respuesta.trim();
@@ -82,7 +95,7 @@ async function main() {
   }
 
   const email = process.env.SUPABASE_EMAIL ?? (await preguntar('Email de tu cuenta: '));
-  const password = process.env.SUPABASE_PASSWORD ?? (await preguntar('Contraseña: '));
+  const password = process.env.SUPABASE_PASSWORD ?? (await preguntar('Contraseña (no se verá al escribir): ', true));
 
   const supabase = createClient(url, anonKey);
   const { data: sesion, error: errorLogin } = await supabase.auth.signInWithPassword({ email, password });
