@@ -60,21 +60,59 @@ function leerEnvLocal() {
   return vars;
 }
 
-async function preguntar(texto, oculto = false) {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  if (oculto) {
-    // Tras escribir la pregunta, readline deja de hacer eco de lo que se
-    // teclea: la contraseña no queda a la vista en la terminal.
-    let preguntaMostrada = false;
-    rl._writeToOutput = (s) => {
-      if (!preguntaMostrada) {
-        process.stdout.write(s);
-        preguntaMostrada = true;
-      } else if (s.includes('\n')) {
+/**
+ * Intenta leer una línea sin que se vea lo que se teclea, con la terminal
+ * en modo raw. En el panel de terminal de la app de escritorio de Claude
+ * se sigue viendo (probado el 06/11/2026), así que el texto de la pregunta
+ * no promete que quede oculta; para no teclearla, usar SUPABASE_PASSWORD.
+ */
+function preguntarOculto(texto) {
+  return new Promise((resolve, reject) => {
+    const entrada = process.stdin;
+    process.stdout.write(texto);
+    if (!entrada.isTTY) {
+      // Entrada redirigida (tubería o archivo): no hay eco que ocultar.
+      const rl = createInterface({ input: entrada });
+      rl.once('line', (linea) => {
+        rl.close();
         process.stdout.write('\n');
+        resolve(linea.trim());
+      });
+      return;
+    }
+    let valor = '';
+    entrada.setRawMode(true);
+    entrada.resume();
+    entrada.setEncoding('utf8');
+    const alTeclear = (trozo) => {
+      for (const caracter of trozo) {
+        if (caracter === '\r' || caracter === '\n') {
+          terminar();
+          resolve(valor.trim());
+          return;
+        }
+        if (caracter === '\u0003') {
+          terminar();
+          reject(new Error('Cancelado'));
+          return;
+        }
+        if (caracter === '\u007f' || caracter === '\b') valor = valor.slice(0, -1);
+        else valor += caracter;
       }
     };
-  }
+    const terminar = () => {
+      entrada.off('data', alTeclear);
+      entrada.setRawMode(false);
+      entrada.pause();
+      process.stdout.write('\n');
+    };
+    entrada.on('data', alTeclear);
+  });
+}
+
+async function preguntar(texto, oculto = false) {
+  if (oculto) return preguntarOculto(texto);
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
   const respuesta = await rl.question(texto);
   rl.close();
   return respuesta.trim();
@@ -95,7 +133,7 @@ async function main() {
   }
 
   const email = process.env.SUPABASE_EMAIL ?? (await preguntar('Email de tu cuenta: '));
-  const password = process.env.SUPABASE_PASSWORD ?? (await preguntar('Contraseña (no se verá al escribir): ', true));
+  const password = process.env.SUPABASE_PASSWORD ?? (await preguntar('Contraseña: ', true));
 
   const supabase = createClient(url, anonKey);
   const { data: sesion, error: errorLogin } = await supabase.auth.signInWithPassword({ email, password });
@@ -277,7 +315,7 @@ async function main() {
     totalMovimientos += await cargarSerieMensual(catId, 'gasto', grupo.nombre, grupo.valores);
   }
 
-  console.log(`\nMovimientos creados: ${totalMovimientos}`);
+  console.log(`\nMovimientos creados o actualizados: ${totalMovimientos}`);
 
   // ---------- Patrimonio histórico ----------
   console.log('\n--- Histórico de patrimonio (Resumen) ---');
