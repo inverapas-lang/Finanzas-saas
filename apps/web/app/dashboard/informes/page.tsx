@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useEspacioActivoContext } from '../../../lib/contexto-espacio-activo';
-import { formatearMoneda, formatearMes } from '../../../lib/formato';
+import { formatearCifra, formatearMoneda, formatearMes } from '../../../lib/formato';
+import { CabeceraTablaMeses, ESTILOS_TABLA_MESES } from '../../../components/CabeceraTablaMeses';
 import { GraficoSVG, type SerieGrafico } from '../../../components/GraficoSVG';
 import { BotonesExportarTablas } from '../../../components/BotonesExportarTablas';
 import type { HojaExportable } from '../../../lib/exportar-tablas';
@@ -352,51 +353,36 @@ function TablaDinamicaCategorias({
   meses: string[];
   total: number;
 }) {
+  const e = ESTILOS_TABLA_MESES;
   return (
     <div className="tabla-scroll" style={{ borderTop: '1px solid var(--color-border)' }}>
-      <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-            <th style={{ padding: '8px 20px', textAlign: 'left', color: 'var(--color-text-muted)', fontWeight: 500, position: 'sticky', left: 0, background: 'var(--color-bg)' }}>
-              Concepto
-            </th>
-            {meses.map((mes) => (
-              <th key={mes} style={{ padding: '8px 12px', textAlign: 'right', color: 'var(--color-text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                {formatearMes(mes)}
-              </th>
-            ))}
-            <th style={{ padding: '8px 20px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>Total</th>
-          </tr>
-        </thead>
+      <table className="tabla-filas-hover" style={e.tabla}>
+        <CabeceraTablaMeses meses={meses} />
         <tbody>
           {filas.map((fila) => (
-            <tr key={fila.categoriaId} style={{ borderBottom: '1px solid var(--color-border)' }}>
-              <td style={{ padding: '8px 20px', position: 'sticky', left: 0, background: 'var(--color-bg)' }}>{fila.categoriaNombre}</td>
+            <tr key={fila.categoriaId}>
+              <td style={e.concepto} title={fila.categoriaNombre}>{fila.categoriaNombre}</td>
               {meses.map((mes) => (
-                <td key={mes} style={{ padding: '8px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  {fila.porMes[mes] ? formatearMoneda(fila.porMes[mes]) : <span className="texto-ayuda">—</span>}
+                <td key={mes} style={e.cifra}>
+                  {fila.porMes[mes] ? formatearCifra(fila.porMes[mes]) : <span className="texto-ayuda">—</span>}
                 </td>
               ))}
-              <td className="cifra" style={{ padding: '8px 20px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                {formatearMoneda(fila.total)}
-              </td>
+              <td className="cifra" style={e.total}>{formatearCifra(fila.total)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ borderTop: '2px solid var(--color-border)' }}>
-            <td style={{ padding: '8px 20px', fontWeight: 600, position: 'sticky', left: 0, background: 'var(--color-bg)' }}>Total</td>
+          <tr>
+            <td style={{ ...e.concepto, ...e.pie }}>Total</td>
             {meses.map((mes) => {
               const totalMes = filas.reduce((acc, f) => acc + (f.porMes[mes] ?? 0), 0);
               return (
-                <td key={mes} style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                  {formatearMoneda(totalMes)}
+                <td key={mes} style={{ ...e.cifra, ...e.pie }}>
+                  {formatearCifra(totalMes)}
                 </td>
               );
             })}
-            <td style={{ padding: '8px 20px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
-              {formatearMoneda(total)}
-            </td>
+            <td style={{ ...e.total, ...e.pie }}>{formatearCifra(total)}</td>
           </tr>
         </tfoot>
       </table>
