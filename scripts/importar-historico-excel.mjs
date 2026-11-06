@@ -62,9 +62,10 @@ function leerEnvLocal() {
 
 /**
  * Intenta leer una línea sin que se vea lo que se teclea, con la terminal
- * en modo raw. En el panel de terminal de la app de escritorio de Claude
- * se sigue viendo (probado el 06/11/2026), así que el texto de la pregunta
- * no promete que quede oculta; para no teclearla, usar SUPABASE_PASSWORD.
+ * en modo raw (el truco de silenciar readline no bastaba: en Windows la
+ * contraseña se veía igual). Sin probar todavía en una terminal real, así
+ * que la pregunta no promete que quede oculta; para no teclearla, usar
+ * la variable SUPABASE_PASSWORD.
  */
 function preguntarOculto(texto) {
   return new Promise((resolve, reject) => {
