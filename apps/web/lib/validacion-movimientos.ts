@@ -19,6 +19,16 @@ export interface PayloadMovimiento {
   periodicidad?: string;
   observaciones?: string | null; // ingresos
   notas?: string | null; // gastos
+  /** Lo que se escribió en la celda de la hoja anual ("=2100,74+3379,32"); el importe ya viene calculado. */
+  formula?: string | null;
+}
+
+function validarFormula(valor: unknown): string | null {
+  if (valor === undefined || valor === null || valor === '') return null;
+  if (typeof valor !== 'string' || !valor.startsWith('=') || valor.length > 500) {
+    throw new ErrorApi(400, 'formula debe ser un texto que empiece por "=" (máximo 500 caracteres)');
+  }
+  return valor;
 }
 
 const UUID_REGEX =
@@ -64,21 +74,26 @@ export function validarPayloadMovimiento(
     throw new ErrorApi(400, 'fecha_prevista debe tener formato YYYY-MM-DD');
   }
 
+  // Se admiten importes negativos: un gasto negativo es una devolución y
+  // un ingreso negativo una corrección, igual que en la hoja del usuario
+  // (filas de gasto con meses en positivo por reembolsos).
   const campoImporte = tipo === 'ingreso' ? 'importe_esperado' : 'importe_previsto';
   const importe = requerido(campoImporte);
-  if (typeof importe !== 'number' || !Number.isFinite(importe) || importe < 0) {
-    throw new ErrorApi(400, `${campoImporte} debe ser un número mayor o igual a 0`);
+  if (typeof importe !== 'number' || !Number.isFinite(importe)) {
+    throw new ErrorApi(400, `${campoImporte} debe ser un número`);
   }
 
   if (b.importe_real !== undefined && b.importe_real !== null) {
-    if (typeof b.importe_real !== 'number' || !Number.isFinite(b.importe_real) || b.importe_real < 0) {
-      throw new ErrorApi(400, 'importe_real debe ser un número mayor o igual a 0');
+    if (typeof b.importe_real !== 'number' || !Number.isFinite(b.importe_real)) {
+      throw new ErrorApi(400, 'importe_real debe ser un número');
     }
   }
 
   if (b.periodicidad !== undefined && !PERIODICIDADES.includes(b.periodicidad as string)) {
     throw new ErrorApi(400, `periodicidad debe ser una de: ${PERIODICIDADES.join(', ')}`);
   }
+
+  const formula = validarFormula(b.formula);
 
   const payload: PayloadMovimiento = {
     espacio_id,
@@ -89,6 +104,7 @@ export function validarPayloadMovimiento(
     importe_real: (b.importe_real as number) ?? null,
     moneda: (b.moneda as string) ?? 'EUR',
     periodicidad: (b.periodicidad as string) ?? 'unico',
+    formula,
   };
 
   if (tipo === 'ingreso') {
@@ -108,7 +124,7 @@ export function validarPayloadMovimiento(
 /**
  * Validación de un PATCH parcial: solo valida los campos que vienen
  * presentes en `cambios` (nunca exige los obligatorios de un alta), para
- * evitar persistir valores inválidos (importe negativo, fecha con formato
+ * evitar persistir valores inválidos (importe no numérico, fecha con formato
  * incorrecto, moneda arbitraria) que `validarPayloadMovimiento` sí bloquea
  * en el alta pero que un PATCH sin pasar por aquí dejaría colar.
  */
@@ -119,20 +135,18 @@ export function validarCambiosMovimiento(
   const campoImporte = tipo === 'ingreso' ? 'importe_esperado' : 'importe_previsto';
   if (cambios[campoImporte] !== undefined) {
     const importe = cambios[campoImporte];
-    if (typeof importe !== 'number' || !Number.isFinite(importe) || importe < 0) {
-      throw new ErrorApi(400, `${campoImporte} debe ser un número mayor o igual a 0`);
+    if (typeof importe !== 'number' || !Number.isFinite(importe)) {
+      throw new ErrorApi(400, `${campoImporte} debe ser un número`);
     }
   }
 
   if (cambios.importe_real !== undefined && cambios.importe_real !== null) {
-    if (
-      typeof cambios.importe_real !== 'number' ||
-      !Number.isFinite(cambios.importe_real) ||
-      cambios.importe_real < 0
-    ) {
-      throw new ErrorApi(400, 'importe_real debe ser un número mayor o igual a 0');
+    if (typeof cambios.importe_real !== 'number' || !Number.isFinite(cambios.importe_real)) {
+      throw new ErrorApi(400, 'importe_real debe ser un número');
     }
   }
+
+  if (cambios.formula !== undefined) cambios.formula = validarFormula(cambios.formula);
 
   if (cambios.periodicidad !== undefined && !PERIODICIDADES.includes(cambios.periodicidad as string)) {
     throw new ErrorApi(400, `periodicidad debe ser una de: ${PERIODICIDADES.join(', ')}`);

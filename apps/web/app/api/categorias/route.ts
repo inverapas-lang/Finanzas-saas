@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('espacio_id', espacio_id)
       .order('tipo', { ascending: true })
-      .order('orden', { ascending: true });
+      .order('orden', { ascending: true })
+      .order('created_at', { ascending: true });
 
     const tipo = params.get('tipo');
     if (tipo === 'ingreso' || tipo === 'gasto') {

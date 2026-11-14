@@ -128,7 +128,7 @@ describe('ejecutarHerramienta: proponer_cambios', () => {
     const { supabase, llamadas } = supabaseFalso(() => ({ data: null, error: null }));
     const r = await ejecutarHerramienta(supabase, ESPACIO_ID, 'proponer_cambios', {
       resumen: 'x',
-      cambios: [{ accion: 'modificar', entidad: 'gasto', id: GASTO_ID, valores: { importe_previsto: -1 } }],
+      cambios: [{ accion: 'modificar', entidad: 'gasto', id: GASTO_ID, valores: { importe_previsto: 'mucho' } }],
     });
     expect(r.esError).toBe(true);
     expect(llamadas).toHaveLength(0);

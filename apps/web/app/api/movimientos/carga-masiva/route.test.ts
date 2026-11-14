@@ -89,7 +89,7 @@ describe('POST /api/movimientos/carga-masiva', () => {
         espacio_id: ESPACIO_ID,
         filas: [
           { descripcion: 'Enero', fecha_prevista: '2026-01-01', importe: 100 },
-          { descripcion: 'Febrero', fecha_prevista: '2026-02-01', importe: -5 },
+          { descripcion: 'Febrero', fecha_prevista: '2026-02-01', importe: 'cinco' },
         ],
       })
     );
