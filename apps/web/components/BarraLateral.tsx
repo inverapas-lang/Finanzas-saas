@@ -23,6 +23,7 @@ import {
   X,
   TrendingUp,
   Rocket,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface EspacioSimple {
@@ -45,6 +46,7 @@ const ITEMS = [
   { href: '/dashboard', etiqueta: 'Panel', Icono: LayoutDashboard },
   { href: '/dashboard/bienvenida', etiqueta: 'Primeros pasos', Icono: Rocket },
   { href: '/dashboard/chat', etiqueta: 'Asistente financiero', Icono: Sparkles },
+  { href: '/dashboard/hoja-anual', etiqueta: 'Hoja anual', Icono: FileSpreadsheet },
   { href: '/dashboard/movimientos', etiqueta: 'Movimientos', Icono: Receipt },
   { href: '/dashboard/categorias', etiqueta: 'Categorías', Icono: Tags },
   { href: '/dashboard/reglas-recurrentes', etiqueta: 'Reglas recurrentes', Icono: Repeat },

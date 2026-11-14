@@ -2,7 +2,14 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useEspacioActivoContext } from '../../lib/contexto-espacio-activo';
-import { formatearMoneda, formatearFecha, tituloImporteExacto, type DecimalesMoneda } from '../../lib/formato';
+import {
+  formatearMoneda,
+  formatearFecha,
+  guardarDecimalesPreferidos,
+  leerDecimalesPreferidos,
+  tituloImporteExacto,
+  type DecimalesMoneda,
+} from '../../lib/formato';
 
 interface Proyeccion {
   realConfirmadoIngresos: number;
@@ -21,7 +28,6 @@ interface Ingreso {
   fecha_prevista: string;
 }
 
-const CLAVE_LOCALSTORAGE_DECIMALES = 'finanzas:decimales-mostrados';
 
 function SelectorDecimales({
   valor,
@@ -59,21 +65,18 @@ export default function PaginaDashboard() {
   const [formFecha, setFormFecha] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  // Preferencia de decimales mostrados (0/2/4). Se guarda en localStorage
-  // para que se recuerde entre visitas — es solo una preferencia visual de
-  // este navegador, no algo que viva en la base de datos.
+  // Preferencia de decimales mostrados (0/2/4), compartida con el resto de
+  // pantallas a través de lib/formato (formatearMoneda la usa por defecto).
+  // Se lee tras montar para que el HTML del servidor (siempre 2) coincida.
   const [decimales, setDecimales] = useState<DecimalesMoneda>(2);
 
   useEffect(() => {
-    const guardado = window.localStorage.getItem(CLAVE_LOCALSTORAGE_DECIMALES);
-    if (guardado === '0' || guardado === '2' || guardado === '4') {
-      setDecimales(Number(guardado) as DecimalesMoneda);
-    }
+    setDecimales(leerDecimalesPreferidos());
   }, []);
 
   function cambiarDecimales(nuevo: DecimalesMoneda) {
     setDecimales(nuevo);
-    window.localStorage.setItem(CLAVE_LOCALSTORAGE_DECIMALES, String(nuevo));
+    guardarDecimalesPreferidos(nuevo);
   }
 
   // Guarda de qué espacio es la petición más reciente en vuelo — si al

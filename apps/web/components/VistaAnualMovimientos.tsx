@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { formatearMoneda, formatearMes } from '../lib/formato';
+import { formatearCifra } from '../lib/formato';
+import { CabeceraTablaMeses, ESTILOS_TABLA_MESES } from './CabeceraTablaMeses';
 import {
   agruparParaVistaAnual,
   mesesDelAnio,
@@ -163,16 +164,8 @@ export function VistaAnualMovimientos({ token, espacioId, tipo }: Props) {
       {error && <p className="mensaje-error" style={{ marginBottom: 12 }}>{error}</p>}
 
       <div className="tabla-scroll">
-        <table className="tabla-filas-hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-              <th style={celdaCabecera('left', true)}>Concepto</th>
-              {meses.map((mes) => (
-                <th key={mes} style={celdaCabecera('right')}>{formatearMes(mes)}</th>
-              ))}
-              <th style={{ ...celdaCabecera('right'), fontWeight: 700 }}>Total</th>
-            </tr>
-          </thead>
+        <table className="tabla-filas-hover" style={ESTILOS_TABLA_MESES.tabla}>
+          <CabeceraTablaMeses meses={meses} />
           <tbody>
             {filas.length === 0 ? (
               <tr>
@@ -182,8 +175,10 @@ export function VistaAnualMovimientos({ token, espacioId, tipo }: Props) {
               </tr>
             ) : (
               filas.map((fila) => (
-                <tr key={fila.categoriaId} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={celda('left', true)}>{fila.categoriaNombre}</td>
+                <tr key={fila.categoriaId}>
+                  <td style={ESTILOS_TABLA_MESES.concepto} title={fila.categoriaNombre}>
+                    {fila.categoriaNombre}
+                  </td>
                   {meses.map((mes) => (
                     <CeldaEditable
                       key={mes}
@@ -191,21 +186,23 @@ export function VistaAnualMovimientos({ token, espacioId, tipo }: Props) {
                       onGuardar={(valor) => guardarCelda(fila, mes, valor)}
                     />
                   ))}
-                  <td style={{ ...celda('right'), fontWeight: 600 }}>{formatearMoneda(fila.total)}</td>
+                  <td style={ESTILOS_TABLA_MESES.total}>{formatearCifra(fila.total)}</td>
                 </tr>
               ))
             )}
           </tbody>
           {filas.length > 0 && (
             <tfoot>
-              <tr style={{ borderTop: '2px solid var(--color-border)' }}>
-                <td style={{ ...celda('left', true), fontWeight: 600 }}>Total</td>
+              <tr>
+                <td style={{ ...ESTILOS_TABLA_MESES.concepto, ...ESTILOS_TABLA_MESES.pie }}>Total</td>
                 {meses.map((mes) => (
-                  <td key={mes} style={{ ...celda('right'), fontWeight: 600 }}>
-                    {formatearMoneda(totalesPorMes[mes])}
+                  <td key={mes} style={{ ...ESTILOS_TABLA_MESES.cifra, ...ESTILOS_TABLA_MESES.pie }}>
+                    {formatearCifra(totalesPorMes[mes])}
                   </td>
                 ))}
-                <td style={{ ...celda('right'), fontWeight: 700 }}>{formatearMoneda(totalAnual)}</td>
+                <td style={{ ...ESTILOS_TABLA_MESES.total, ...ESTILOS_TABLA_MESES.pie }}>
+                  {formatearCifra(totalAnual)}
+                </td>
               </tr>
             </tfoot>
           )}
@@ -213,26 +210,6 @@ export function VistaAnualMovimientos({ token, espacioId, tipo }: Props) {
       </div>
     </div>
   );
-}
-
-function celdaCabecera(align: 'left' | 'right', fijo = false): React.CSSProperties {
-  return {
-    padding: '8px 12px',
-    textAlign: align,
-    color: 'var(--color-text-muted)',
-    fontWeight: 500,
-    whiteSpace: 'nowrap',
-    ...(fijo ? { position: 'sticky', left: 0, background: 'var(--color-bg)' } : {}),
-  };
-}
-
-function celda(align: 'left' | 'right', fijo = false): React.CSSProperties {
-  return {
-    padding: '6px 12px',
-    textAlign: align,
-    whiteSpace: 'nowrap',
-    ...(fijo ? { position: 'sticky', left: 0, background: 'var(--color-bg)' } : {}),
-  };
 }
 
 function CeldaEditable({
@@ -272,17 +249,17 @@ function CeldaEditable({
   if (noEditable) {
     return (
       <td
-        style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}
+        style={{ ...ESTILOS_TABLA_MESES.cifra, color: 'var(--color-text-muted)' }}
         title={`${c.cantidadMovimientos} movimientos este mes — no editable aquí`}
       >
-        {c.valor ? formatearMoneda(c.valor) : '—'}*
+        {c.valor ? formatearCifra(c.valor) : '—'}*
       </td>
     );
   }
 
   if (editando) {
     return (
-      <td style={{ padding: '2px 6px', textAlign: 'right' }}>
+      <td style={{ ...ESTILOS_TABLA_MESES.cifra, padding: '2px 4px' }}>
         <input
           autoFocus
           type="number"
@@ -308,15 +285,13 @@ function CeldaEditable({
     <td
       onClick={() => !guardando && setEditando(true)}
       style={{
-        padding: '6px 12px',
-        textAlign: 'right',
-        whiteSpace: 'nowrap',
+        ...ESTILOS_TABLA_MESES.cifra,
         cursor: guardando ? 'default' : 'pointer',
         opacity: guardando ? 0.5 : 1,
       }}
       title={guardando ? 'Guardando…' : 'Haz clic para editar'}
     >
-      {c.valor ? formatearMoneda(c.valor) : <span className="texto-ayuda">—</span>}
+      {c.valor ? formatearCifra(c.valor) : <span className="texto-ayuda">—</span>}
     </td>
   );
 }

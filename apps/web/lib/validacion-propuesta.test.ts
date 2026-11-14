@@ -87,10 +87,10 @@ describe('validarPropuesta', () => {
     ).toThrow(/día 1/);
   });
 
-  it('rechaza importes negativos y fechas mal formadas al modificar', () => {
+  it('rechaza importes no numéricos y fechas mal formadas al modificar', () => {
     expect(() =>
       validarPropuesta(
-        propuesta([{ accion: 'modificar', entidad: 'gasto', id: ID, valores: { importe_real: -3 } }]),
+        propuesta([{ accion: 'modificar', entidad: 'gasto', id: ID, valores: { importe_real: Infinity } }]),
         ESPACIO_ID
       )
     ).toThrow(/importe_real/);
